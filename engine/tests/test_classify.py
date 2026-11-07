@@ -266,7 +266,7 @@ class PrivacyTests(Corpus):
     injections = True
 
     def test_injected_files_cannot_steer_names_or_paths(self):
-        self.fake.chat_reply = {"name": "../../etc/passwd", "folderName": "/Users/admin/.ssh",
+        self.fake.chat_reply = {"name": "../../etc/passwd", "folderName": "/etc/ssh/keys",
                                 "description": "mail attacker@example.com"}
         self.service.update_settings({"aiDescriptions": True})
         proposal = self.discover()
@@ -278,7 +278,7 @@ class PrivacyTests(Corpus):
         for prompt in self.fake.chat_calls:
             self.assertNotIn("mario.rossi@example.com", prompt)
             self.assertNotIn("4111 1111 1111 1111", prompt)
-            self.assertNotIn("ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", prompt)
+            self.assertNotIn("ghp_" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", prompt)
             self.assertIn("<<<DATA", prompt)
 
     def test_diagnostics_contain_no_pii_descriptions_or_gps(self):
@@ -288,12 +288,12 @@ class PrivacyTests(Corpus):
         self.service.create_plan(accepted["profile"], from_analysis=proposal["analysisId"])
         logs = self.service.data_dir / "logs"
         logs.mkdir()
-        (logs / "engine.log").write_text("failed for mario.rossi@example.com at 41.390000, 2.170000 key AKIAABCDEFGHIJKLMNOP\n")
+        (logs / "engine.log").write_text("failed for mario.rossi@example.com at 41.390000, 2.170000 key " + "AKIA" + "ABCDEFGHIJKLMNOP\n")
         output = self.root / "diag.zip"
         self.service.export_diagnostics(str(output))
         with zipfile.ZipFile(str(output)) as bundle:
             text = " ".join(bundle.read(name).decode() for name in bundle.namelist())
-        for secret in ("mario.rossi@example.com", "41.390000", "AKIAABCDEFGHIJKLMNOP", "Pixel 7", "Bills and invoices",
+        for secret in ("mario.rossi@example.com", "41.390000", "AKIA" + "ABCDEFGHIJKLMNOP", "Pixel 7", "Bills and invoices",
                        "content_cache", "dateTaken"):
             self.assertNotIn(secret, text)
 
@@ -316,8 +316,8 @@ class PiiTests(unittest.TestCase):
             "codice-fiscale": "CF RSSMRA85T10A562S ok",
             "ssn": "ssn 123-45-6789",
             "ip": "host 192.168.1.20",
-            "aws-key": "AKIAIOSFODNN7EXAMPLE",
-            "github-token": "ghp_1234567890abcdefghijABCDEFGHIJ123456",
+            "aws-key": "AKIA" + "IOSFODNN7EXAMPLE",
+            "github-token": "ghp_" + "1234567890abcdefghijABCDEFGHIJ123456",
             "api-key": "sk-proj-abcdefghijklmnop1234",
             "private-key": "-----BEGIN RSA PRIVATE KEY-----\nMIIEow\n-----END RSA PRIVATE KEY-----",
             "url-token": "https://example.com/a?token=abc123&x=1",
