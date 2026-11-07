@@ -43,7 +43,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "externalBin": ["binaries/organize-engine", "binaries/similar-photos"],
+    "externalBin": ["binaries/organize-engine"],
     "license": "MIT",
     "licenseFile": "../../../LICENSE.txt",
     "resources": { "../../../legal/generated/": "legal/" },
