@@ -129,6 +129,9 @@ class OllamaServer:
             "OLLAMA_MAX_LOADED_MODELS": "1",
             "OLLAMA_NUM_PARALLEL": "1",
             "OLLAMA_KEEP_ALIVE": "0",
+            # No remote inference / web search, and never prune (modify) the user's model store.
+            "OLLAMA_NO_CLOUD": "1",
+            "OLLAMA_NOPRUNE": "1",
         }
         for key in ("OLLAMA_MODELS", "TMPDIR"):
             if os.environ.get(key):

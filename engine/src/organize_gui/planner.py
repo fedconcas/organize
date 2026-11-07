@@ -269,7 +269,7 @@ class Planner:
                           "label": "Matching files to your categories"})
             classifier = ContentClassifier(self.store, content_rules, settings.get("aiEmbedModel", ""),
                                            bool(settings.get("aiEnabled")), self.session_factory)
-            matched, notice = classifier.classify(pending, metas, cancelled)
+            matched, notice = classifier.classify(pending, metas, cancelled, sources)
 
         occupied: Set[str] = set()
         items: List[Dict[str, Any]] = []

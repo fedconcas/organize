@@ -434,6 +434,7 @@ class BackendTests(unittest.TestCase):
             env = data["env"]
             self.assertEqual(env["OLLAMA_HOST"], "127.0.0.1:%d" % server.port)
             self.assertEqual((env["OLLAMA_MAX_LOADED_MODELS"], env["OLLAMA_NUM_PARALLEL"]), ("1", "1"))
+            self.assertEqual((env["OLLAMA_NO_CLOUD"], env["OLLAMA_NOPRUNE"]), ("1", "1"))
             self.assertFalse(any("proxy" in key.lower() for key in env))
             self.assertIsNone(server.process)
 

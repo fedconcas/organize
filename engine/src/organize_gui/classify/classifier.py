@@ -91,11 +91,19 @@ def meta_summary(meta: Optional[Dict[str, Any]]) -> str:
     return " ".join(parts)
 
 
-def build_signal(path: Path, meta: Optional[Dict[str, Any]] = None, text: Optional[str] = None) -> str:
+def parent_label(path: Path, roots: Iterable[Path] = ()) -> str:
+    """The parent folder's name, unless it is one of the folders being organized (no signal there)."""
+    from ..paths import path_key
+
+    return "" if path_key(path.parent) in {path_key(root) for root in roots} else path.parent.name
+
+
+def build_signal(path: Path, meta: Optional[Dict[str, Any]] = None, text: Optional[str] = None,
+                 roots: Iterable[Path] = ()) -> str:
     """Name + extension + parent folder + metadata summary + extracted text, scrubbed. Memory only."""
     extension = path.suffix.lower().lstrip(".")
     words = " ".join(tokens(path.name))
-    parent = " ".join(tokens(path.parent.name))
+    parent = " ".join(tokens(parent_label(path, roots)))
     body = extract_text(path) if text is None else text
     signal = "file: %s | type: %s %s | folder: %s" % (words, extension, family(extension), parent)
     summary = meta_summary(meta)
@@ -106,13 +114,13 @@ def build_signal(path: Path, meta: Optional[Dict[str, Any]] = None, text: Option
     return pii.scrub(signal)
 
 
-def signal_key(path: Path) -> str:
+def signal_key(path: Path, roots: Iterable[Path] = ()) -> str:
     """Cache key: capped content digest plus the name inputs of the signal."""
     import hashlib
 
     digest = hashlib.sha256()
     digest.update(content_digest(path).encode())
-    digest.update(("\x00%s\x00%s\x00%d" % (path.name, path.parent.name, SIGNAL_VERSION)).encode())
+    digest.update(("\x00%s\x00%s\x00%d" % (path.name, parent_label(path, roots), SIGNAL_VERSION)).encode())
     return digest.hexdigest()
 
 
@@ -207,16 +215,16 @@ class ContentClassifier:
                 self.rules.append((rule, vectors.from_blob(stored["centroid"]), float(stored["threshold"])))
 
     def classify(self, paths: Sequence[Path], metas: Dict[Path, Dict[str, Any]],
-                 cancelled: Optional[Callable[[], bool]] = None) -> Tuple[Dict[Path, Tuple[Dict[str, Any], str, float]], Optional[str]]:
+                 cancelled: Optional[Callable[[], bool]] = None, roots: Sequence[Path] = ()) -> Tuple[Dict[Path, Tuple[Dict[str, Any], str, float]], Optional[str]]:
         """({path: (rule, confidence, similarity)}, notice). Unmatched paths are absent."""
         if not paths or not self.rules:
             return {}, None
         if not self.enabled:
             return {}, "AI_DISABLED"
-        keys = {path: signal_key(path) for path in paths}
+        keys = {path: signal_key(path, roots) for path in paths}
         notice = None
         with ModelSession(self.session_factory) as session:
-            items = [(keys[path], build_signal(path, metas.get(path))) for path in paths]
+            items = [(keys[path], build_signal(path, metas.get(path), roots=roots)) for path in paths]
             try:
                 found = embed_signals(self.store, session, self.model, items, cancelled=cancelled)
             except BackendUnavailable:

@@ -20,7 +20,7 @@ from . import EMBED_DIMS, MAX_CATEGORIES, PROMPT_VERSION, SIGNAL_VERSION, naming
 from .backend import BackendUnavailable
 from .classifier import (
     SCAN_NAME, ModelSession, SessionFactory, build_signal, embed_signals, family,
-    membership_confidence, signal_key,
+    membership_confidence, parent_label, signal_key,
 )
 from .places import country_for
 
@@ -318,9 +318,10 @@ class Discovery:
         items = []
         for count, entry in enumerate(entries, 1):
             self._check(cancelled)
-            signal = analysis.signals.get(entry["index"]) or build_signal(entry["path"], entry["meta"])
+            roots = [Path(source) for source in analysis.sources]
+            signal = analysis.signals.get(entry["index"]) or build_signal(entry["path"], entry["meta"], roots=roots)
             analysis.signals[entry["index"]] = signal
-            keys[entry["index"]] = signal_key(entry["path"])
+            keys[entry["index"]] = signal_key(entry["path"], roots)
             items.append((keys[entry["index"]], signal))
             if count % 20 == 0 or count == len(entries):
                 report("reading", count, len(entries))
@@ -387,7 +388,9 @@ class Discovery:
     def _stats(self, analysis: Analysis, category: Dict[str, Any]) -> Tuple[str, List[str]]:
         members = [analysis.files[index] for index in category["members"]]
         extensions = Counter(entry["ext"] or "none" for entry in members).most_common(4)
-        words = Counter(word for entry in members for word in naming.tokens(entry["name"]) + naming.tokens(entry["path"].parent.name)
+        roots = [Path(source) for source in analysis.sources]
+        words = Counter(word for entry in members
+                        for word in naming.tokens(entry["name"]) + naming.tokens(parent_label(entry["path"], roots))
                         if len(word) >= 3 and not word.isdigit() and word not in STOPWORDS).most_common(8)
         centre = category.get("centroid")
         ranked = sorted(members, key=lambda entry: -vectors.dot(analysis.vectors.get(entry["index"], [0.0] * EMBED_DIMS), centre)) if centre else members
@@ -431,7 +434,7 @@ class Discovery:
                     reply = {}
             name = naming.category_name(reply.get("name"), fallback, samples)
             category["name"] = name
-            category["folderName"] = naming.folder_name(reply.get("folderName") or name, fallback, taken, samples, position)
+            category["folderName"] = naming.folder_name(name, reply.get("folderName") or fallback, taken, samples, position)
             category["description"] = naming.description(reply.get("description"), samples) if settings.get("aiDescriptions") else None
             if progress:
                 progress({"analysisId": analysis.id, "stage": "naming", "done": position, "total": len(named)})
@@ -485,7 +488,7 @@ class Discovery:
             except BackendUnavailable:
                 reply = {}
         category["name"] = naming.category_name(reply.get("name"), fallback, samples)
-        category["folderName"] = naming.folder_name(reply.get("folderName") or category["name"], fallback, taken, samples)
+        category["folderName"] = naming.folder_name(category["name"], reply.get("folderName") or fallback, taken, samples)
         category["description"] = naming.description(reply.get("description"), samples) if settings.get("aiDescriptions") else None
 
     def proposal(self, analysis: Analysis, too_few: bool = False) -> Dict[str, Any]:
