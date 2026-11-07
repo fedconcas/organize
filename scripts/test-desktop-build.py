@@ -18,10 +18,6 @@ class DesktopBuildTests(unittest.TestCase):
             scripts.mkdir()
             script = scripts / name
             script.write_bytes((ROOT / 'scripts' / name).read_bytes())
-            binary = root / 'target/release/similar-photos'
-            binary.parent.mkdir(parents=True)
-            binary.write_text('test binary')
-            (root / 'sidecars/similar-photos').mkdir(parents=True)
             fake_tools = root / 'tools'
             fake_tools.mkdir()
             stub = '''#!/usr/bin/env python3
@@ -44,7 +40,7 @@ if args[0] == 'metadata':
         license_name = 'GPL-3.0-only' if os.environ.get('BUILD_TEST_GPL') else 'MIT'
         print(json.dumps({
             'packages': [
-                {'id': 'host', 'name': 'similar-photos', 'license': license_name},
+                {'id': 'host', 'name': 'organize-desktop', 'license': license_name},
                 {'id': 'other-platform', 'name': 'unrelated', 'license': 'GPL-3.0-only'},
             ],
             'resolve': {'nodes': [{'id': 'host'}]},
@@ -59,44 +55,25 @@ if args[0] == 'metadata':
             result = subprocess.run(['bash', str(script)], env=env, capture_output=True, text=True)
             log = root / 'calls.jsonl'
             calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
-            installed = (root / f'apps/desktop/src-tauri/binaries/similar-photos-{TARGET}').exists()
-            return result, calls, installed
+            return result, calls
 
-    def test_sidecar_prefetches_and_audits_only_host_graph(self):
-        result, calls, installed = self.run_script('build-similar-sidecar.sh')
+    def test_license_preparation_fetches_the_locked_host_graph(self):
+        result, calls = self.run_script('prepare-license-deps.sh')
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue(installed)
-        self.assertEqual(calls[0][:4], ['fetch', '--locked', '--target', TARGET])
-        audit = next(call for call in calls if call[0] == 'metadata' and '--no-deps' not in call)
-        for flag in ('--locked', '--offline', '--filter-platform'):
-            self.assertIn(flag, audit)
-        self.assertEqual(audit[audit.index('--filter-platform') + 1], TARGET)
-
-    def test_host_gpl_still_fails_before_binary_is_bundled(self):
-        result, _, installed = self.run_script('build-similar-sidecar.sh', BUILD_TEST_GPL='1')
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('refusing GPL crate', result.stderr)
-        self.assertFalse(installed)
-
-    def test_missing_cache_fails_at_fetch_not_silently_at_audit(self):
-        result, calls, installed = self.run_script('build-similar-sidecar.sh', BUILD_TEST_FETCH_FAIL='1')
-        self.assertNotEqual(result.returncode, 0)
         self.assertEqual(len(calls), 1)
-        self.assertFalse(installed)
-
-    def test_license_preparation_fetches_both_locked_host_graphs(self):
-        result, calls, _ = self.run_script('prepare-license-deps.sh')
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(len(calls), 2)
-        for call in calls:
-            self.assertEqual(call[:4], ['fetch', '--locked', '--target', TARGET])
+        self.assertEqual(calls[0][:4], ['fetch', '--locked', '--target', TARGET])
         self.assertTrue(calls[0][-1].endswith('apps/desktop/src-tauri/Cargo.toml'))
-        self.assertTrue(calls[1][-1].endswith('sidecars/similar-photos/Cargo.toml'))
 
     def test_license_preparation_stops_if_locked_dependencies_cannot_be_fetched(self):
-        result, calls, _ = self.run_script('prepare-license-deps.sh', BUILD_TEST_FETCH_FAIL='1')
+        result, calls = self.run_script('prepare-license-deps.sh', BUILD_TEST_FETCH_FAIL='1')
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(len(calls), 1)
+
+    def test_removed_similar_photos_sidecar_is_not_built(self):
+        package = json.loads((ROOT / 'apps/desktop/package.json').read_text())
+        self.assertNotIn('build:similar', package['scripts'])
+        self.assertFalse((ROOT / 'scripts/build-similar-sidecar.sh').exists())
+        self.assertFalse((ROOT / 'sidecars/similar-photos').exists())
 
     def test_npm_prepares_cache_before_offline_license_generation(self):
         package = json.loads((ROOT / 'apps/desktop/package.json').read_text())

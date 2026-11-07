@@ -124,8 +124,6 @@ apps/desktop/dist/
 apps/desktop/src-tauri/target/
 apps/desktop/src-tauri/gen/
 apps/desktop/src-tauri/binaries/organize-engine-*
-apps/desktop/src-tauri/binaries/similar-photos-*
-sidecars/similar-photos/target/
 
 # Created by https://www.toptal.com/developers/gitignore/api/macos
 # Edit at https://www.toptal.com/developers/gitignore?templates=macos

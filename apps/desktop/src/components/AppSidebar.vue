@@ -16,7 +16,6 @@ const modules: Array<{ id: PresetType; icon: string; label: string; tone: string
   { id: 'by-date', icon: 'image', label: 'Photo archive', tone: 'blue' },
   { id: 'old-installers', icon: 'archive', label: 'Old installers', tone: 'peach' },
   { id: 'duplicates', icon: 'duplicate', label: 'Duplicate files', tone: 'pink' },
-  { id: 'similar-photos', icon: 'image', label: 'Similar photos', tone: 'lilac' },
 ]
 const locked = computed(() => store.view === 'executing' || store.view === 'scan')
 const inFlow = computed(() => ['config', 'scan', 'preview', 'duplicates', 'executing', 'result'].includes(store.view))

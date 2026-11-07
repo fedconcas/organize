@@ -63,10 +63,9 @@ class DemoApi {
     if (method === 'preset.list') {
       return [
         { id: 'by-type', name: 'Organize files by type', description: 'Choose folders and category rules; documents, images and more each go to one place.', operation: 'move' },
-        { id: 'by-date', name: 'Archive images by date', description: 'Organizes photos and screenshots by year and month.', operation: 'move' },
+        { id: 'by-date', name: 'Archive images by date', description: 'Organizes photos and screenshots by year and month of the date taken.', operation: 'move' },
         { id: 'old-installers', name: 'Clean up old installers', description: 'Free up space taken by old installers.', operation: 'quarantine' },
         { id: 'duplicates', name: 'Duplicate file finder', description: 'Only byte-for-byte identical content counts as a duplicate.', operation: 'quarantine' },
-        { id: 'similar-photos', name: 'Similar photos', description: 'Finds identical and similar-looking photos, including rotated or flipped copies.', operation: 'quarantine' },
       ] as T
     }
     if (method === 'profile.validate') return { valid: true, issues: [] } as T
@@ -83,40 +82,7 @@ class DemoApi {
         await new Promise((resolve) => setTimeout(resolve, 90))
         this.emit('plan.progress', { checked, path: `${profile.sourceFolders[0]}/Sample file-${checked}.pdf` })
       }
-      const photoGroups = profile.presetType === 'similar-photos'
-      const photoFiles = [
-        ['IMG_2041.HEIC', 4032, 3024, 8_420_000, 0],
-        ['IMG_2041 copy.HEIC', 4032, 3024, 8_420_000, 0],
-        ['IMG_2042.JPG', 3024, 4032, 3_100_000, 4],
-        ['scene-a.jpg', 1920, 1080, 2_200_000, 0],
-        ['scene-b.jpg', 1280, 720, 900_000, 6],
-      ] as const
-      const items: PlanItem[] = photoGroups
-        ? photoFiles.map(([name, width, height, size, difference], index) => ({
-          itemId: `demo-${index}`,
-          sequence: index,
-          operation: 'quarantine' as const,
-          sourcePath: `${profile.sourceFolders[0]}/${name}`,
-          targetPath: null,
-          size,
-          selected: false,
-          status: 'planned',
-          warningCode: null,
-          reason: difference ? 'Photos that look similar' : 'Photos with identical content',
-          groupId: index < 3 ? 'group-similar' : 'group-other',
-          metadata: {
-            kind: 'similar',
-            difference,
-            width,
-            height,
-            modifiedMs: Date.now() - index * 1000,
-            previewPath: '',
-            recommendedKeep: index === 0 || index === 3,
-            recommendedRule: 'resolution',
-            decision: 'undecided',
-          },
-        }))
-        : sampleFiles.map(([name, folder, size], index) => ({
+      const items: PlanItem[] = sampleFiles.map(([name, folder, size], index) => ({
           itemId: `demo-${index}`,
           sequence: index,
           operation: profile.presetType === 'old-installers' || profile.presetType === 'duplicates' ? 'quarantine' : 'move',
@@ -138,8 +104,7 @@ class DemoApi {
           selectedBytes: items.filter((x) => x.selected).reduce((n, x) => n + x.size, 0),
           move: items.filter((x) => x.selected && x.operation === 'move').length,
           quarantine: items.filter((x) => x.selected && x.operation === 'quarantine').length,
-          skip: 0, conflict: photoGroups ? 0 : 1, groups: photoGroups ? 2 : profile.presetType === 'duplicates' ? 4 : 0,
-          warnings: photoGroups ? [] : undefined, heicDecoder: photoGroups ? 'sips' : undefined,
+          skip: 0, conflict: 1, groups: profile.presetType === 'duplicates' ? 4 : 0,
         }, items,
       }
       this.emit('plan.completed', { planId: this.plan.planId, summary: this.plan.summary })
@@ -165,7 +130,7 @@ class DemoApi {
         endedAt: new Date().toISOString(),
       }
       this.history.unshift({ ...result, undoable_count: selected.length, run_id: result.runId, plan_id: result.planId, profile: this.plan!.profile, started_at: new Date().toISOString() })
-      if (this.plan!.profile.presetType === 'old-installers' || this.plan!.profile.presetType === 'duplicates' || this.plan!.profile.presetType === 'similar-photos') {
+      if (this.plan!.profile.presetType === 'old-installers' || this.plan!.profile.presetType === 'duplicates') {
         this.quarantine.unshift(...selected.map((item) => ({
           quarantine_id: `q-${item.itemId}`, operation_id: item.itemId,
           original_path: item.sourcePath, quarantine_path: item.targetPath,
@@ -247,12 +212,6 @@ export interface AppApi {
 
 const isTauri = '__TAURI_INTERNALS__' in window
 export const api: AppApi = isTauri ? new TauriApi() : new DemoApi()
-
-export async function localFileUrl(path: string): Promise<string> {
-  if (!isTauri || !path) return ''
-  const { convertFileSrc } = await import('@tauri-apps/api/core')
-  return convertFileSrc(path)
-}
 
 export async function pickDirectories(multiple = false): Promise<string[]> {
   if (isTauri) {

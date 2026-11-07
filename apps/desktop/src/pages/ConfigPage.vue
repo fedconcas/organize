@@ -15,17 +15,15 @@ const expandedRule = ref<string>()
 
 const PRESETS = {
   'by-type': { label: 'Sort by type', icon: 'folder', description: 'Puts files into matching subfolders by extension.' },
-  'by-date': { label: 'Archive by date', icon: 'image', description: 'Puts files by modified date into “Year/Month” folders.' },
+  'by-date': { label: 'Archive by date', icon: 'image', description: 'Puts photos into “Year/Month” folders by the date they were taken.' },
   'old-installers': { label: 'Clean up old installers', icon: 'download', description: 'Move long-unused installers to quarantine; restore any time.' },
   duplicates: { label: 'Duplicate file finder', icon: 'duplicate', description: 'Finds files with identical content; you decide which copy to keep.' },
-  'similar-photos': { label: 'Similar photos', icon: 'image', description: 'Finds identical and similar-looking photos. Rotated and flipped copies are found too.' },
 } as const
 const preset = computed(() => PRESETS[store.profile.presetType])
 const params = computed(() => store.profile.parameters)
 const isByType = computed(() => store.profile.presetType === 'by-type')
-const fixedTarget = computed(() => ['old-installers', 'duplicates', 'similar-photos'].includes(store.profile.presetType))
-const photos = computed(() => store.profile.presetType === 'similar-photos')
-const scanModeMissing = computed(() => photos.value && params.value.scanExact === false && params.value.scanSimilar === false)
+const fixedTarget = computed(() => ['old-installers', 'duplicates'].includes(store.profile.presetType))
+const useDateTaken = computed(() => params.value.dateSource !== 'modified')
 const baseName = (path: string) => path.replace(/\/+$/, '').split('/').at(-1) || path
 const targetPath = computed(() => fixedTarget.value ? store.settings.quarantineFolder || 'App quarantine' : store.profile.targetFolder)
 const targetName = computed(() => fixedTarget.value ? 'Quarantine' : baseName(store.profile.targetFolder))
@@ -70,16 +68,15 @@ const targetInsideSource = computed(() => !fixedTarget.value && store.profile.so
   const target = normalized(store.profile.targetFolder)
   return target === normalized(source) || target.startsWith(`${normalized(source)}/`)
 }))
-const blockers = computed(() => (store.profile.sourceFolders.length ? 0 : 1) + (targetInsideSource.value ? 1 : 0) + issues.value.length + (scanModeMissing.value ? 1 : 0))
+const blockers = computed(() => (store.profile.sourceFolders.length ? 0 : 1) + (targetInsideSource.value ? 1 : 0) + issues.value.length)
 
 const enabledRules = computed(() => (params.value.typeRules ?? []).map((rule, index) => ({ rule, index })).filter(({ rule }) => rule.enabled))
 const now = new Date()
 const summary = computed(() => {
   const sources = `${store.profile.sourceFolders.length} sources`
   if (isByType.value) return `${sources} → ${enabledRules.value.length} categories${params.value.unmatchedAction === 'keep' ? ', unmatched files stay in place' : ''}`
-  if (store.profile.presetType === 'by-date') return `${sources} → Archive by “Year/Month”`
+  if (store.profile.presetType === 'by-date') return `${sources} → Archive by “Year/Month” of the ${useDateTaken.value ? 'date taken' : 'modified date'}`
   if (store.profile.presetType === 'old-installers') return `${sources} → Installers older than ${params.value.olderThanDays ?? 90} days are moved to quarantine`
-  if (photos.value) return `${sources} → Exact duplicates ${params.value.scanExact === false ? 'off' : 'on'}, similar ${params.value.scanSimilar === false ? 'off' : 'on'}`
   return `${sources} → Find duplicate files and confirm group by group`
 })
 
@@ -184,34 +181,15 @@ async function scan() {
           </div>
         </section>
 
-        <section v-else-if="photos" class="panel config-section">
-          <header class="section-head"><div class="section-title"><h2>What to scan</h2><p>Only reads photos. Deletions always go to quarantine and can be undone.</p></div></header>
-          <div class="option-list">
-            <div class="option-row">
-              <span><b>Exact duplicates</b><small>Files are byte-for-byte identical, including two identical HEIC</small></span>
-              <SwitchToggle :model-value="params.scanExact !== false" label="Exact duplicates" @update:model-value="params.scanExact = $event" />
-            </div>
-            <div class="option-row">
-              <span><b>Looks similar</b><small>Copies that were compressed, differ in resolution, or were rotated or flipped</small></span>
-              <SwitchToggle :model-value="params.scanSimilar !== false" label="Looks similar" @update:model-value="params.scanSimilar = $event" />
-            </div>
-            <div class="option-row">
-              <span><b>Rotation and flipping</b><small>When on, rotated photos are grouped together; scanning is slower</small></span>
-              <SwitchToggle :model-value="params.geometricInvariance !== false" label="Rotation and flipping" @update:model-value="params.geometricInvariance = $event" />
-            </div>
-            <div class="option-row">
-              <span><b>Similarity strictness</b><small>The smaller the number, the less likely different photos are grouped together</small></span>
-              <div class="segments compact" role="radiogroup" aria-label="Similarity distance">
-                <button v-for="value in [0, 5, 10, 15]" :key="value" role="radio" :aria-checked="(params.maxDifference ?? 5) === value" :class="{ active: (params.maxDifference ?? 5) === value }" @click="params.maxDifference = value">{{ value }}</button>
-              </div>
-            </div>
-          </div>
-          <div class="banner undo inset"><AppIcon name="info" :size="16" />Similar groups are not pre-marked for deletion. After scanning you choose group by group, or apply a keep rule in one click and then adjust. macOS decodes HEIC with its built-in sips, so no extra decoder library is needed.</div>
-        </section>
-
         <section v-else class="panel config-section">
           <header class="section-head"><div class="section-title"><h2>{{ store.profile.presetType === 'by-date' ? 'Archive by' : 'How to handle' }}</h2></div></header>
-          <div v-if="store.profile.presetType === 'by-date'" class="banner quarantine inset"><AppIcon name="info" :size="16" />Archives by file modified date. The modified date isn’t always the date a photo was taken.</div>
+          <div v-if="store.profile.presetType === 'by-date'" class="option-list">
+            <div class="option-row">
+              <span><b>Use date taken when available</b><small>Read from the photo’s EXIF header. Photos without one use the file’s modified date; the preview shows which date each photo used.</small></span>
+              <SwitchToggle :model-value="useDateTaken" label="Use date taken when available" @update:model-value="params.dateSource = $event ? 'taken' : 'modified'" />
+            </div>
+          </div>
+          <div v-if="store.profile.presetType === 'by-date'" class="banner quarantine inset"><AppIcon name="info" :size="16" />{{ useDateTaken ? 'Archives by the date taken, falling back to the modified date. Location and camera details are never stored.' : 'Archives by file modified date. The modified date isn’t always the date a photo was taken.' }}</div>
           <div v-else class="banner undo inset"><AppIcon name="info" :size="16" />Duplicates found are never handled automatically. After scanning you pick which copy to keep for each group; the rest move to quarantine.</div>
         </section>
       </div>
@@ -243,9 +221,6 @@ async function scan() {
             <li :class="store.profile.sourceFolders.length ? 'ok' : 'fail'">
               <AppIcon :name="store.profile.sourceFolders.length ? 'check' : 'alert'" :size="14" />
               {{ store.profile.sourceFolders.length ? `Selected ${store.profile.sourceFolders.length} source folders` : 'Add at least one source folder' }}
-            </li>
-            <li v-if="photos" :class="scanModeMissing ? 'fail' : 'ok'">
-              <AppIcon :name="scanModeMissing ? 'alert' : 'check'" :size="14" />{{ scanModeMissing ? 'Turn on at least one of exact duplicates or similar' : 'Scan mode selected' }}
             </li>
             <li v-if="!fixedTarget" :class="targetInsideSource ? 'fail' : 'ok'">
               <AppIcon :name="targetInsideSource ? 'alert' : 'check'" :size="14" />{{ targetInsideSource ? 'The target folder is inside the source; please change it' : 'The target folder is not inside the source' }}

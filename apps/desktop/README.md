@@ -42,24 +42,8 @@ src-tauri/target/release/bundle/dmg/
 
 The build script creates an isolated Python environment under the repository's
 ignored `build/` directory, freezes the engine with PyInstaller, and bundles it
-as a Tauri sidecar. It also builds `similar-photos`, a second sidecar linked
-only to MIT `czkawka_core` 12 (not the GPL-3.0-only `krokiet` GUI). The
-resulting application does not require Python to be installed on the
-destination machine.
-
-`similar-photos` needs Rust 1.94.1 or newer. Its default build is pure Rust
-and does not link libheif. On macOS, HEIC and HEIF files are decoded with
-`/usr/bin/sips`, which ships with the OS, and the JPEG preview stays inside
-the app data directory. Windows and Linux builds still detect byte-identical
-HEIC files; perceptual HEIC matching on those systems is not part of this
-macOS-first build. Do not pass Czkawka delete flags. Unkept photos move to
-Organize quarantine and can be undone.
-
-Build just the photo sidecar with:
-
-```bash
-bash scripts/build-similar-sidecar.sh
-```
+as a Tauri sidecar. The resulting application does not require Python to be
+installed on the destination machine.
 
 Local builds use an ad-hoc macOS signature. A Developer ID certificate and
 Apple notarization are still required before distributing the DMG to other

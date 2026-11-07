@@ -34,12 +34,12 @@ function conflictsFor(rule: TypeRule) {
 }
 
 const ICONS: Array<[RegExp, string]> = [
-  [/^(documents|text|pdf|sheets|slides)$|documents?|text|materials?|spreadsheets?|presentations?|文档|文稿|资料|表格|演示/i, 'file'],
-  [/^(images|photos|graphics)$|images?|photos?|graphics|图|照片/i, 'image'],
-  [/^videos$|videos?|视频/i, 'video'],
-  [/^audio$|audio|音/i, 'music'],
-  [/^archives$|archives?|压缩/i, 'archive'],
-  [/^installers$|installers?|安装/i, 'package'],
+  [/^(documents|text|pdf|sheets|slides)$|documents?|text|materials?|spreadsheets?|presentations?/i, 'file'],
+  [/^(images|photos|graphics)$|images?|photos?|graphics/i, 'image'],
+  [/^videos$|videos?/i, 'video'],
+  [/^audio$|audio/i, 'music'],
+  [/^archives$|archives?/i, 'archive'],
+  [/^installers$|installers?/i, 'package'],
 ]
 const iconFor = (rule: TypeRule) => ICONS.find(([pattern]) => pattern.test(rule.id) || pattern.test(rule.name))?.[1] ?? 'tag'
 

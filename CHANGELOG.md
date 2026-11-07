@@ -2,7 +2,14 @@
 
 ## [Unreleased]
 
-- Desktop: similar-photos scan finds exact duplicates and perceptually similar photos, including rotated or flipped copies, then quarantines unkept files with undo. HEIC on macOS is decoded with the system `sips` tool.
+### Removed
+
+- Desktop: the image-content "Similar photos" comparison, its `similar-photos` sidecar (czkawka_core) and the asset protocol used for its thumbnails. Saved plans that used it are dropped on upgrade. Exact (byte-identical) duplicate finding and metadata-based photo features stay.
+
+### Changed
+
+- Desktop: "Archive images by date" now uses the EXIF date taken by default, falling back to the modified date per photo.
+
 - Fixed #500: `rename_existing` conflict messages now show the generated filename.
 - Fixed #438 (`filecontent` filter fails for PDFs when `pdftotext` isn't installed, instead of falling back to `pdfminer`)
 

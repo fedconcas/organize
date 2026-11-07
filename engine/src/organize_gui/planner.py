@@ -18,8 +18,8 @@ from .presets import (
     IMAGE_EXTENSIONS,
     INSTALLER_EXTENSIONS,
 )
+from .photo_meta import read_meta
 from .profiles import normalized_extension, type_configuration, validate_type_configuration
-from .similar import items_from_scan, scan_similar_photos
 from .store import Store
 from .v3_core import (
     CORE_VERSION,
@@ -65,11 +65,11 @@ def validate_profile(profile: Dict[str, Any], check_paths: bool = True) -> List[
             issues.append({"code": "SOURCE_NOT_READABLE", "path": str(source)})
 
     preset = profile.get("presetType")
-    if preset not in {"by-type", "by-date", "old-installers", "duplicates", "similar-photos"}:
+    if preset not in {"by-type", "by-date", "old-installers", "duplicates"}:
         issues.append({"code": "INVALID_PRESET", "field": "presetType"})
 
     target_value = profile.get("targetFolder")
-    if preset not in {"old-installers", "duplicates", "similar-photos"}:
+    if preset not in {"old-installers", "duplicates"}:
         if not isinstance(target_value, str) or not target_value.strip():
             issues.append({"code": "TARGET_NOT_WRITABLE", "field": "targetFolder"})
         else:
@@ -110,20 +110,8 @@ def validate_profile(profile: Dict[str, Any], check_paths: bool = True) -> List[
         for key, minimum, maximum in [("olderThanDays", 1, 36500), ("minimumBytes", 0, 10**15)]:
             if key in params and (type(params[key]) is not int or not minimum <= params[key] <= maximum):
                 issues.append({"code": "INVALID_PARAMETER", "field": "parameters.%s" % key})
-        if preset == "similar-photos":
-            if params.get("scanExact") is False and params.get("scanSimilar") is False:
-                issues.append({"code": "INVALID_PARAMETER", "field": "parameters.scanExact"})
-            for key in ("scanExact", "scanSimilar", "geometricInvariance"):
-                if key in params and not isinstance(params[key], bool):
-                    issues.append({"code": "INVALID_PARAMETER", "field": "parameters.%s" % key})
-            if "maxDifference" in params and (
-                type(params["maxDifference"]) is not int or not 0 <= params["maxDifference"] <= 40
-            ):
-                issues.append({"code": "INVALID_PARAMETER", "field": "parameters.maxDifference"})
-            if "hashSize" in params and params["hashSize"] not in (8, 16, 32, 64):
-                issues.append({"code": "INVALID_PARAMETER", "field": "parameters.hashSize"})
-            if "keepRule" in params and params["keepRule"] not in {"resolution", "largest", "newest", "shortest"}:
-                issues.append({"code": "INVALID_PARAMETER", "field": "parameters.keepRule"})
+        if "dateSource" in params and params["dateSource"] not in {"taken", "modified"}:
+            issues.append({"code": "INVALID_PARAMETER", "field": "parameters.dateSource"})
     return issues
 
 
@@ -163,7 +151,6 @@ class Planner:
     def __init__(self, store: Store, quarantine_root: Path) -> None:
         self.store = store
         self.quarantine_root = quarantine_root
-        self.scan_similar = scan_similar_photos
 
     def create(
         self,
@@ -177,15 +164,11 @@ class Planner:
         now = utc_now()
         plan_id = uuid.uuid4().hex
         preset = profile["presetType"]
-        extra: Dict[str, Any] = {}
         if preset == "duplicates":
             items = self._duplicates(plan_id, profile, progress, cancelled)
-        elif preset == "similar-photos":
-            items, extra = self._similar_photos(plan_id, profile, progress, cancelled)
         else:
             items = self._regular(plan_id, profile, progress, cancelled)
         summary = self._summary(items)
-        summary.update(extra)
         self.store.save_profile(profile, iso(now))
         self.store.save_plan(
             plan_id,
@@ -226,6 +209,7 @@ class Planner:
             INSTALLER_EXTENSIONS | ({"zip"} if include_archives else set())
         )
         old_filter = last_modified_filter(days=age_days)
+        use_date_taken = params.get("dateSource", "taken") == "taken"
 
         for resource, skip_reason in scan_files(sources, recursive, progress, cancelled):
             source = resource.path
@@ -258,10 +242,21 @@ class Planner:
             elif profile["presetType"] == "by-date":
                 date_resource = resource_for(source, root)
                 if apply(image_filter, date_resource) and apply(modified_filter, date_resource):
-                    modified = date_resource.vars["lastmodified"]
-                    destination = target / ("%d" % modified.year) / ("%02d" % modified.month) / source.name
+                    when = date_resource.vars["lastmodified"]
+                    date_source = "modified"
+                    if use_date_taken:
+                        meta = read_meta(source)
+                        if meta["dateSource"] == "taken" and meta["dateTaken"]:
+                            when = datetime.fromisoformat(meta["dateTaken"])
+                            date_source = "taken"
+                    destination = target / ("%d" % when.year) / ("%02d" % when.month) / source.name
                     destination, renamed = unique_destination(destination, occupied)
                     item = self._item(plan_id, len(items), source, destination, "move", True)
+                    item["metadata"]["dateSource"] = date_source
+                    item["reason"] = (
+                        "Date taken" if date_source == "taken"
+                        else "Modified date (no date taken)" if use_date_taken else "Modified date"
+                    )
                     if renamed:
                         item["warningCode"] = "TARGET_CONFLICT"
             elif profile["presetType"] == "old-installers":
@@ -361,31 +356,6 @@ class Planner:
                 item["reason"] = "Duplicate files"
                 items.append(item)
         return items
-
-    def _similar_photos(
-        self,
-        plan_id: str,
-        profile: Dict[str, Any],
-        progress: Progress,
-        cancelled: CancelledCheck,
-    ):
-        if cancelled and cancelled():
-            raise Cancelled()
-        preview_dir = self.quarantine_root.parent / "similar-previews" / plan_id
-        result = self.scan_similar(profile, preview_dir, progress, cancelled)
-        sources = [absolute_path(item) for item in profile["sourceFolders"]]
-
-        def destination(source: Path) -> Path:
-            matches = [item for item in sources if is_within(source, item)]
-            root = max(matches, key=lambda item: len(path_key(item))) if matches else source.parent
-            return self._quarantine_destination(plan_id, root, source)
-
-        items = items_from_scan(plan_id, profile, result, self._item, destination)
-        extra = {
-            "warnings": list(result.get("warnings") or []),
-            "heicDecoder": result.get("heicDecoder") or "none",
-        }
-        return items, extra
 
     def _quarantine_destination(self, plan_id: str, root: Path, source: Path) -> Path:
         try:

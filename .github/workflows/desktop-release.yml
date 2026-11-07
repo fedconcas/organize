@@ -45,10 +45,6 @@ jobs:
           build/desktop-python/bin/python -m pip install -r scripts/desktop-build-requirements.txt
           build/desktop-python/bin/python -m pip install --no-deps --no-build-isolation -e .
           build/desktop-python/bin/python -m pip check
-      - name: Build similar-photos sidecar
-        run: |
-          bash scripts/build-similar-sidecar.sh
-          cargo test --release --locked --manifest-path sidecars/similar-photos/Cargo.toml
       - name: Regression tests
         run: |
           build/desktop-python/bin/python scripts/check-release-privacy.py --source

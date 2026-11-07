@@ -5,7 +5,10 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
+
+# Presets that were removed from the app. Profiles that use them can no longer be planned.
+REMOVED_PRESETS = ("similar-photos",)
 
 
 class Store:
@@ -118,11 +121,34 @@ class Store:
             );
             """
         )
-        db.execute(
+        applied = {row[0] for row in db.execute("SELECT version FROM schema_migrations")}
+        if 3 not in applied:
+            self._drop_removed_preset_profiles(db)
+        db.executemany(
             "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, datetime('now'))",
-            (SCHEMA_VERSION,),
+            [(version,) for version in range(2, SCHEMA_VERSION + 1)],
         )
         db.commit()
+
+    @staticmethod
+    def _drop_removed_preset_profiles(db: sqlite3.Connection) -> None:
+        """Version 3: the similar-photos preset was removed; forget profiles and open plans that use it."""
+        for table in ("saved_profiles", "profiles"):
+            rows = db.execute("SELECT profile_id, profile_json FROM %s" % table).fetchall()
+            for row in rows:
+                try:
+                    preset = json.loads(row[1]).get("presetType")
+                except (ValueError, AttributeError):
+                    continue
+                if preset in REMOVED_PRESETS:
+                    db.execute("DELETE FROM %s WHERE profile_id=?" % table, (row[0],))
+        for row in db.execute("SELECT plan_id, profile_json FROM plans WHERE status='ready'").fetchall():
+            try:
+                preset = json.loads(row[1]).get("presetType")
+            except (ValueError, AttributeError):
+                continue
+            if preset in REMOVED_PRESETS:
+                db.execute("UPDATE plans SET status='expired' WHERE plan_id=?", (row[0],))
 
     @staticmethod
     def _json(value: Any) -> str:

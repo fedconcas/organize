@@ -9,10 +9,9 @@ const store = useAppStore()
 const today = new Date()
 const presentation: Record<PresetType, { icon: string; title: string; safety: string; tone: string; flow: string[] }> = {
   'by-type': { icon: 'folder', title: 'Messy files, neatly sorted', safety: 'Moves only, never deletes', tone: 'mint', flow: ['Choose folders', 'Custom categories'] },
-  'by-date': { icon: 'image', title: 'Give every photo its place', safety: 'Archive by modified date', tone: 'blue', flow: ['Photos and screenshots', `${today.getFullYear()} / ${today.getMonth() + 1}`] },
+  'by-date': { icon: 'image', title: 'Give every photo its place', safety: 'Archive by date taken', tone: 'blue', flow: ['Photos and screenshots', `${today.getFullYear()} / ${today.getMonth() + 1}`] },
   'old-installers': { icon: 'archive', title: 'Make room from old installers', safety: 'Move to quarantine; restorable', tone: 'peach', flow: ['Over 90 days', 'Safe quarantine'] },
   duplicates: { icon: 'duplicate', title: 'Identical files, keep only one', safety: 'You choose what to keep', tone: 'pink', flow: ['Comparing file contents', 'Choose group by group'] },
-  'similar-photos': { icon: 'image', title: 'Similar photos, keep only one', safety: 'Not marked for deletion by default', tone: 'lilac', flow: ['Exact duplicates and similar', 'Confirm group by group'] },
 }
 </script>
 
@@ -23,7 +22,7 @@ const presentation: Record<PresetType, { icon: string; title: string; safety: st
       <div class="hero-copy"><span class="hero-kicker"><AppIcon name="sparkle" :size="16" />Less clutter, more ease</span><h2>Put files where they belong.</h2><p>Start with one folder. See where every file goes first, <br>Then leave the organizing to Organize with peace of mind.</p><button class="button primary hero-action" :disabled="!store.engineReady" @click="store.choosePreset('by-type')">Start organizing<AppIcon name="arrow" :size="18" /></button><small>Choose folders, then scan · No files change until you confirm</small></div>
       <CareVisual />
     </section>
-    <div class="home-section-heading"><h2>Choose a way to organize your files</h2><span>5 tools, all safety-first</span></div>
+    <div class="home-section-heading"><h2>Choose a way to organize your files</h2><span>{{ store.presets.length }} tools, all safety-first</span></div>
     <div class="home-grid">
       <div>
         <div class="preset-grid">

@@ -74,7 +74,7 @@ class EngineIntegrationTests(unittest.TestCase):
     def test_target_conflict_is_renamed_during_planning(self):
         source_file = self.source / "报价单.pdf"
         source_file.write_text("new", encoding="utf-8")
-        existing_dir = self.target / "文档"
+        existing_dir = self.target / "Documents"
         existing_dir.mkdir()
         (existing_dir / "报价单.pdf").write_text("old", encoding="utf-8")
         plan = self.service.create_plan(self.profile())
@@ -278,7 +278,7 @@ class EngineIntegrationTests(unittest.TestCase):
         self.service.export_diagnostics(str(output))
         with zipfile.ZipFile(str(output)) as bundle:
             manifest = json.loads(bundle.read("diagnostics.json"))
-            self.assertEqual(manifest["settings"]["defaultTargetFolder"], "~[路径已隐藏]")
+            self.assertEqual(manifest["settings"]["defaultTargetFolder"], "~[Path hidden]")
             self.assertNotIn("Private", bundle.read("logs/engine.log").decode())
 
 

@@ -44,8 +44,8 @@ test('duplicate extension is reported on the later enabled rule only', () => {
   rules[1].extensions.push('pdf')
   const issues = ruleIssues(byType(rules))
   assert.deepEqual(issues.map(issue => [issue.ruleId, issue.field]), [['images', 'extensions']])
-  assert.match(issues[0].message, /pdf.*文档/)
-  assert.deepEqual(extensionOwners(rules).get('pdf'), ['文档', '图片'])
+  assert.match(issues[0].message, /pdf.*Documents/)
+  assert.deepEqual(extensionOwners(rules).get('pdf'), ['Documents', 'Images'])
   rules[1].enabled = false
   assert.deepEqual(ruleIssues(byType(rules)), [])
 })
@@ -59,6 +59,6 @@ test('unmatched handling: invalid other folder and no categories', () => {
   assert.deepEqual(ruleIssues(byType([], { unmatchedAction: 'keep' })).map(issue => issue.field), ['rules'])
 })
 test('new rule names stay unique and stable stringify ignores key order', () => {
-  assert.equal(newRuleName([{ name: '新分类' }, { name: '新分类 2' }]), '新分类 3')
+  assert.equal(newRuleName([{ name: 'New category' }, { name: 'New category 2' }]), 'New category 3')
   assert.equal(stableStringify({ b: 1, a: [{ d: 1, c: 2 }] }), stableStringify({ a: [{ c: 2, d: 1 }], b: 1 }))
 })

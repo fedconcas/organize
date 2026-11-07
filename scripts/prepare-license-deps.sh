@@ -6,6 +6,4 @@ script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
 target_triple="$(rustc --print host-tuple)"
 
-for manifest in "$repo_root/apps/desktop/src-tauri/Cargo.toml" "$repo_root/sidecars/similar-photos/Cargo.toml"; do
-  cargo fetch --locked --target "$target_triple" --manifest-path "$manifest"
-done
+cargo fetch --locked --target "$target_triple" --manifest-path "$repo_root/apps/desktop/src-tauri/Cargo.toml"

@@ -61,12 +61,6 @@ def all_presets() -> List[Dict[str, Any]]:
             "description": "Only byte-for-byte identical content counts as a duplicate.",
             "operation": "quarantine",
         },
-        {
-            "id": "similar-photos",
-            "name": "Similar photos",
-            "description": "Finds identical and similar-looking photos, including rotated or flipped copies.",
-            "operation": "quarantine",
-        },
     ]
 
 

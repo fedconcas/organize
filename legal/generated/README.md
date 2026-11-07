@@ -17,10 +17,7 @@ Inside the app you can also use "About & diagnostics → Open-source licenses an
 - `manifest.json`: build target, component sources, license file SHA-256 values, lockfiles and source archive SHA-256.
 - `MPL-SOURCES.md`, `MPL-SOURCES.zip`: source code for the corresponding versions of MPL components, no network needed.
 - `BRAND.md`: independent project and branding notice.
-- `Cargo.lock`, `similar-photos-Cargo.lock`, `package-lock.json`, `python-packages.json`: the dependency records for this build.
-  `similar-photos` links only the MIT `czkawka_core` and does not include the GPL-3.0-only krokiet.
-  The `czkawka_core` dependency graph includes the MPL-2.0 symphonia audio libraries. This feature does not call any audio tools,
-  but the unmodified corresponding source is still shipped when the license bundle is generated.
+- `Cargo.lock`, `package-lock.json`, `python-packages.json`: the dependency records for this build.
 
 ## Reproducible generation
 
@@ -31,10 +28,10 @@ cd apps/desktop
 npm run build:licenses
 ```
 
-`build:bundle` first builds the engine and the similar-photos sidecar, then generates the license materials, and finally builds the frontend.
-`build:licenses` first downloads the dependencies of the two Cargo lockfiles for the current host platform, then runs an offline license check.
+`build:bundle` first builds the engine, then generates the license materials, and finally builds the frontend.
+`build:licenses` first downloads the dependencies of the Cargo lockfile for the current host platform, then runs an offline license check.
 A network connection is needed for the first build or after dependency updates; once the cache is complete, the check itself does not touch the network.
-The generator reads the current npm lockfile, the Cargo dependency graphs of the desktop app and similar-photos, and all distributions installed in the packaged Python environment
+The generator reads the current npm lockfile, the Cargo dependency graph of the desktop app, and all distributions installed in the packaged Python environment
 (a conservative cover of runtime and build dependencies; it does not mean every component is linked into the app).
 Do not interpret the licenses of all build tools as the license of the app as a whole.
 The Python standard library license comes from the interpreter packaged in this build, not from an arbitrary latest web page.

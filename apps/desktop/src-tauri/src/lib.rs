@@ -104,52 +104,9 @@ impl Drop for EngineBridge {
     }
 }
 
-fn similar_photos_binary() -> Option<PathBuf> {
-    if let Ok(value) = env::var("ORGANIZE_SIMILAR_PHOTOS") {
-        let path = PathBuf::from(value);
-        if path.is_file() {
-            return Some(path);
-        }
-    }
-    let name = if cfg!(windows) {
-        "similar-photos.exe"
-    } else {
-        "similar-photos"
-    };
-    if let Ok(executable) = env::current_exe() {
-        if let Some(directory) = executable.parent() {
-            let bundled = directory.join(name);
-            if bundled.is_file() {
-                return Some(bundled);
-            }
-        }
-    }
-    if cfg!(debug_assertions) {
-        let binaries = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("binaries");
-        if let Ok(entries) = std::fs::read_dir(binaries) {
-            let mut matches: Vec<PathBuf> = entries
-                .flatten()
-                .map(|entry| entry.path())
-                .filter(|path| {
-                    path.file_name()
-                        .and_then(|name| name.to_str())
-                        .is_some_and(|name| name.starts_with("similar-photos-"))
-                })
-                .collect();
-            matches.sort();
-            return matches.pop();
-        }
-    }
-    None
-}
-
 fn engine_command() -> Result<Command, String> {
     if let Ok(binary) = env::var("ORGANIZE_GUI_ENGINE") {
-        let mut command = Command::new(binary);
-        if let Some(scanner) = similar_photos_binary() {
-            command.env("ORGANIZE_SIMILAR_PHOTOS", scanner);
-        }
-        return Ok(command);
+        return Ok(Command::new(binary));
     }
 
     let executable = env::current_exe().map_err(|error| format!("Cannot locate the application: {error}"))?;
@@ -161,11 +118,7 @@ fn engine_command() -> Result<Command, String> {
     if let Some(directory) = executable.parent() {
         let bundled = directory.join(bundled_name);
         if bundled.is_file() {
-            let mut command = Command::new(bundled);
-            if let Some(scanner) = similar_photos_binary() {
-                command.env("ORGANIZE_SIMILAR_PHOTOS", scanner);
-            }
-            return Ok(command);
+            return Ok(Command::new(bundled));
         }
     }
 
@@ -189,9 +142,6 @@ fn engine_command() -> Result<Command, String> {
         "PYTHONPATH",
         env::join_paths(paths).map_err(|error| error.to_string())?,
     );
-    if let Some(scanner) = similar_photos_binary() {
-        command.env("ORGANIZE_SIMILAR_PHOTOS", scanner);
-    }
     Ok(command)
 }
 

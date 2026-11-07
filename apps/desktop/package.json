@@ -9,7 +9,6 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "build:engine": "../../scripts/build-engine-sidecar.sh",
-    "build:similar": "../../scripts/build-similar-sidecar.sh",
     "build:licenses": "bash ../../scripts/prepare-license-deps.sh && ../../build/desktop-python/bin/python ../../scripts/generate-license-bundle.py",
     "build:bundle": "npm run build:engine && npm run build",
     "bundle:macos": "tauri build --bundles app,dmg",

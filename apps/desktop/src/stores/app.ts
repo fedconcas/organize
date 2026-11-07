@@ -12,17 +12,15 @@ function makeProfile(preset: PresetType): Profile {
     'by-date': 'Archive images by date',
     'old-installers': 'Clean up old installers',
     duplicates: 'Duplicate file finder',
-    'similar-photos': 'Similar photos',
   }
   return {
     id: crypto.randomUUID(), name: names[preset], presetType: preset,
     sourceFolders: ['~/Downloads'], targetFolder: '~/Documents/Organize',
-    includeSubfolders: preset === 'duplicates' || preset === 'similar-photos', schemaVersion: 1,
+    includeSubfolders: preset === 'duplicates', schemaVersion: 1,
     parameters: {
       categories: [...categories], olderThanDays: 90,
-      includeArchives: false, minimumBytes: preset === 'similar-photos' ? 0 : 1024 * 1024,
-      scanExact: true, scanSimilar: true, maxDifference: 5, hashSize: 16,
-      geometricInvariance: true, keepRule: 'resolution',
+      includeArchives: false, minimumBytes: 1024 * 1024,
+      ...(preset === 'by-date' ? { dateSource: 'taken' as const } : {}),
     },
   }
 }
@@ -169,7 +167,7 @@ export const useAppStore = defineStore('app', () => {
       plan.value = await api.request<Plan>('plan.create', { profile: profile.value })
       if (scanCancelled) return
       lastProfile.value = JSON.parse(JSON.stringify(profile.value))
-      view.value = profile.value.presetType === 'duplicates' || profile.value.presetType === 'similar-photos' ? 'duplicates' : 'preview'
+      view.value = profile.value.presetType === 'duplicates' ? 'duplicates' : 'preview'
     } catch (caught) {
       if (!scanCancelled) report(caught)
       view.value = 'config'
@@ -216,7 +214,7 @@ export const useAppStore = defineStore('app', () => {
       }
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : String(caught)
-      view.value = profile.value.presetType === 'duplicates' || profile.value.presetType === 'similar-photos' ? 'duplicates' : 'preview'
+      view.value = profile.value.presetType === 'duplicates' ? 'duplicates' : 'preview'
     } finally {
       busy.value = false
     }

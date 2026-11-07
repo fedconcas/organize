@@ -35,7 +35,7 @@ export function ensureClassification(profile: Profile) {
 }
 
 export function parseExtensions(value: string): string[] {
-  return value.split(/[\s,，、;；]+/).map((part) => part.replace(/^\.+/, '').toLowerCase()).filter(Boolean)
+  return value.split(/[\s,;\uFF0C\u3001\uFF1B]+/).map((part) => part.replace(/^\.+/, '').toLowerCase()).filter(Boolean)
 }
 
 export function newRuleName(rules: TypeRule[]): string {

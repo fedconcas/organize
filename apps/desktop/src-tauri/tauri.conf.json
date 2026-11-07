@@ -23,14 +23,8 @@
       }
     ],
     "security": {
-      "csp": null,
-      "assetProtocol": {
-        "enable": true,
-        "scope": {
-          "allow": ["$HOME/**", "$APPDATA/**", "$APPLOCALDATA/**", "$TEMP/**", "/tmp/**", "/private/tmp/**", "/var/folders/**"],
-          "deny": []
-        }
-      }
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; style-src 'self' 'unsafe-inline'",
+      "dangerousDisableAssetCspModification": ["style-src"]
     }
   },
   "bundle": {

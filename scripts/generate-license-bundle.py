@@ -26,17 +26,7 @@ else:
 ROOT = Path(__file__).resolve().parents[1]
 DESKTOP = ROOT / 'apps/desktop'
 LEGAL = ROOT / 'legal'
-MPL = {
-    'option-ext', 'selectors', 'cssparser', 'cssparser-macros', 'dtoa-short',
-    # czkawka_core 12 pulls the symphonia audio crates. similar-photos does not
-    # call that tool. The crates stay in the Cargo graph, so their MPL sources ship.
-    'symphonia', 'symphonia-bundle-flac', 'symphonia-bundle-mp3',
-    'symphonia-codec-aac', 'symphonia-codec-adpcm', 'symphonia-codec-alac',
-    'symphonia-codec-pcm', 'symphonia-codec-vorbis', 'symphonia-common',
-    'symphonia-core', 'symphonia-format-caf', 'symphonia-format-isomp4',
-    'symphonia-format-mkv', 'symphonia-format-ogg', 'symphonia-format-riff',
-    'symphonia-metadata',
-}
+MPL = {'option-ext', 'selectors', 'cssparser', 'cssparser-macros', 'dtoa-short'}
 
 
 def sha(data):
@@ -91,7 +81,7 @@ def _copyleft_only(token):
 def forbidden_license(name, license):
     """Refuse krokiet and expressions that can only be satisfied by GPL or AGPL.
 
-    ``Apache-2.0 OR GPL-2.0-only`` stays allowed: the MIT sidecar uses the Apache-2.0 side.
+    ``Apache-2.0 OR GPL-2.0-only`` stays allowed: the app uses the Apache-2.0 side.
     """
     if name == 'krokiet':
         return True
@@ -208,6 +198,9 @@ def python_components():
         inventory.append({'name': name, 'version': version})
         files = []
         for file in sorted(dist.files or [], key=str):
+            # Skip debug-symbol bundles and compiled modules that merely share a license-like name.
+            if any(part.endswith('.dSYM') for part in Path(file).parts) or Path(file).suffix in {'.so', '.pyc', '.dylib'}:
+                continue
             if license_name(Path(file).name):
                 path = Path(dist.locate_file(file))
                 if path.is_file():
@@ -244,12 +237,6 @@ def main():
     args = parser.parse_args()
     target = args.target or subprocess.check_output(['rustc', '--print', 'host-tuple'], text=True).strip()
     rust, mpl = cargo_components(target)
-    sidecar_dir = ROOT / 'sidecars' / 'similar-photos'
-    extra, extra_mpl = cargo_components(target, sidecar_dir, 'similar-photos sidecar (runtime)')
-    seen = {(item['name'], item['version']) for item in rust}
-    rust.extend(item for item in extra if (item['name'], item['version']) not in seen)
-    mpl_names = {item['name'] for item in mpl}
-    mpl.extend(item for item in extra_mpl if item['name'] not in mpl_names)
     python, python_inventory = python_components()
     components = sorted(npm_components() + rust + python,
                         key=lambda p: (p['ecosystem'], p['name'].lower(), p['version']))
@@ -261,7 +248,6 @@ def main():
                              (LEGAL / 'BRAND.md', 'BRAND.md'),
                              (LEGAL / 'README.md', 'README.md'),
                              (DESKTOP / 'src-tauri/Cargo.lock', 'Cargo.lock'),
-                             (ROOT / 'sidecars/similar-photos/Cargo.lock', 'similar-photos-Cargo.lock'),
                              (DESKTOP / 'package-lock.json', 'package-lock.json')]:
             shutil.copyfile(source, output / dest)
         (output / 'python-packages.json').write_text(json.dumps(python_inventory, indent=2) + '\n')
@@ -274,7 +260,7 @@ def main():
             full_mpl = next(f['text'] for p in components if p['name'] == 'cssparser'
                             for f in p['files'] if 'Mozilla Public License Version 2.0' in f['text'])
             z.writestr(zipfile.ZipInfo('MPL-2.0.txt'), full_mpl)
-        source_text = '# MPL-2.0 Corresponding Source\n\nThis distribution provides the following original, unmodified corresponding-version source code under MPL-2.0.\nThe source comes bundled with the app free of charge; no network, payment or login is needed.\n\nTo get it: About & diagnostics → Open-source licenses and source code → Open MPL source archive;\nor in macOS, Show Package Contents → Contents/Resources/legal/MPL-SOURCES.zip.\n\nUnzip the ZIP first; each .crate is a standard tar.gz, extract it with tar -xzf <name-version.crate>.\nAll original source, Cargo.toml and the original license/copyright headers are kept; MPL-2.0.txt provides the full license text.\noption-ext is a desktop runtime dependency. The symphonia crates enter the similar-photos dependency graph through czkawka_core;\nthis feature does not call any audio tools, and the unmodified source is still shipped under MPL-2.0. The remaining components are mainly used for building or macro expansion.\nIndependent MIT code does not become MPL as a whole because of this archive. When you redistribute after modifying these MPL files,\nyou must provide the actual modified corresponding source, and must not keep claiming that it is unmodified here.\n\n\n'
+        source_text = '# MPL-2.0 Corresponding Source\n\nThis distribution provides the following original, unmodified corresponding-version source code under MPL-2.0.\nThe source comes bundled with the app free of charge; no network, payment or login is needed.\n\nTo get it: About & diagnostics → Open-source licenses and source code → Open MPL source archive;\nor in macOS, Show Package Contents → Contents/Resources/legal/MPL-SOURCES.zip.\n\nUnzip the ZIP first; each .crate is a standard tar.gz, extract it with tar -xzf <name-version.crate>.\nAll original source, Cargo.toml and the original license/copyright headers are kept; MPL-2.0.txt provides the full license text.\noption-ext is a desktop runtime dependency. The remaining components are mainly used for building or macro expansion.\nIndependent MIT code does not become MPL as a whole because of this archive. When you redistribute after modifying these MPL files,\nyou must provide the actual modified corresponding source, and must not keep claiming that it is unmodified here.\n\n\n'
         for p in mpl:
             source_text += f'- {p["name"]} {p["version"]}\n  Source: {p["source"]}\n  SHA-256: {p["sha256"]}\n'
         source_text += f'\nMPL-SOURCES.zip SHA-256: {sha(archive.read_bytes())}\n'
