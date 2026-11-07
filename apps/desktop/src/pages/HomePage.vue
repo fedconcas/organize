@@ -7,6 +7,7 @@ import { formatDate } from '../utils'
 
 const store = useAppStore()
 const today = new Date()
+const flowFor = (id: PresetType) => id === 'by-type' && store.settings.aiEnabled ? ['Choose folders', 'Local AI proposes categories'] : presentation[id].flow
 const presentation: Record<PresetType, { icon: string; title: string; safety: string; tone: string; flow: string[] }> = {
   'by-type': { icon: 'folder', title: 'Messy files, neatly sorted', safety: 'Moves only, never deletes', tone: 'mint', flow: ['Choose folders', 'Custom categories'] },
   'by-date': { icon: 'image', title: 'Give every photo its place', safety: 'Archive by date taken', tone: 'blue', flow: ['Photos and screenshots', `${today.getFullYear()} / ${today.getMonth() + 1}`] },
@@ -39,8 +40,8 @@ const presentation: Record<PresetType, { icon: string; title: string; safety: st
               <div><small>{{ preset.name }}</small><h2>{{ presentation[preset.id].title }}</h2><p>{{ preset.description }}</p></div>
             </div>
             <div class="flow-preview">
-              <template v-for="(segment, index) in presentation[preset.id].flow" :key="`${segment}-${index}`">
-                <span>{{ segment }}</span><i v-if="index < presentation[preset.id].flow.length - 1">→</i>
+              <template v-for="(segment, index) in flowFor(preset.id)" :key="`${segment}-${index}`">
+                <span>{{ segment }}</span><i v-if="index < flowFor(preset.id).length - 1">→</i>
               </template>
             </div>
             <div class="preset-footer"><span class="safety-chip"><AppIcon name="check" :size="13" />{{ presentation[preset.id].safety }}</span><span class="preset-open"><AppIcon name="arrow" :size="18" /></span></div>

@@ -2,7 +2,7 @@
 import { computed, nextTick, ref } from 'vue'
 import { useAppStore } from '../stores/app'
 import { pickDirectories } from '../api'
-import { ruleIssues, stableStringify, type RuleIssue } from '../profiles'
+import { hasAiRules, ruleIssues, ruleKind, stableStringify, type RuleIssue } from '../profiles'
 import AppIcon from '../components/AppIcon.vue'
 import ProfileMenu from '../components/ProfileMenu.vue'
 import SwitchToggle from '../components/SwitchToggle.vue'
@@ -12,6 +12,8 @@ const store = useAppStore()
 const validating = ref(false)
 const serverIssues = ref<Array<Record<string, unknown>>>([])
 const expandedRule = ref<string>()
+const confirmRepropose = ref(false)
+const aiRules = computed(() => hasAiRules(store.profile))
 
 const PRESETS = {
   'by-type': { label: 'Sort by type', icon: 'folder', description: 'Puts files into matching subfolders by extension.' },
@@ -38,6 +40,7 @@ const SERVER_LABELS: Record<string, string> = {
   INVALID_RULE_NAME: 'Category name cannot be empty', INVALID_RULE_FOLDER: 'Subfolder name is invalid', INVALID_RULE_EXTENSIONS: 'Invalid extension',
   DUPLICATE_EXTENSION: 'Extension belongs to multiple categories', NO_CATEGORIES: 'Enable at least one category, or put unmatched files into the Other folder',
   INVALID_TYPE_RULES: 'Category rules are malformed', INVALID_UNMATCHED_ACTION: 'How to handle unmatched files is invalid',
+  INVALID_RULE_KIND: 'Unknown kind of category', INVALID_RULE_MATCH: 'Category matching details are invalid',
 }
 const RULE_FIELDS: Record<string, RuleIssue['field']> = {
   INVALID_RULE_NAME: 'name', INVALID_RULE_FOLDER: 'folder', INVALID_RULE_EXTENSIONS: 'extensions', DUPLICATE_EXTENSION: 'extensions',
@@ -163,6 +166,12 @@ async function scan() {
           </div>
         </section>
 
+        <div v-if="isByType && !store.settings.aiEnabled && !aiRules" class="banner quarantine inset ai-off-note"><AppIcon name="info" :size="16" />Files are sorted by extension, as before. Local AI categories are off; turn on “Local AI” in Settings to have Organize propose categories from your files.</div>
+        <div v-if="isByType && aiRules && !store.settings.aiEnabled" class="banner warn inset ai-off-note"><AppIcon name="alert" :size="16" />Local AI is off: files that only a content category could match go to “{{ params.otherFolder || 'Other files' }}”.</div>
+        <div v-if="isByType && (store.settings.aiEnabled || aiRules)" class="repropose-row">
+          <span>{{ aiRules ? 'These categories were proposed from your files and saved for future scans.' : 'Let Organize look at your files and propose categories.' }}</span>
+          <button class="text-button" :disabled="store.busy" @click="aiRules ? (confirmRepropose = true) : store.reproposeCategories()">{{ aiRules ? 'Re-propose' : 'Propose categories' }}</button>
+        </div>
         <TypeRulesEditor v-if="isByType" :key="store.profile.id" v-model:expanded="expandedRule" :issues="issues" :target-name="targetName" />
 
         <section v-else-if="store.profile.presetType === 'old-installers'" class="panel config-section">
@@ -201,7 +210,7 @@ async function scan() {
             <div class="tree-root"><AppIcon :name="fixedTarget ? 'shield' : 'folder'" :size="15" /><b>{{ targetName }}/</b></div>
             <template v-if="isByType">
               <button v-for="{ rule, index } in enabledRules" :key="rule.id" class="tree-node" :class="`tone-${index % 8}`" @click="focusRule(rule.id)">
-                <i class="tone-dot" /><span>{{ rule.folderName || '…' }}/</span><small>{{ rule.extensions.length }} kinds</small>
+                <i class="tone-dot" /><span>{{ rule.folderName || '…' }}/</span><small>{{ ruleKind(rule) === 'content' ? 'by content' : ruleKind(rule) === 'metadata' ? 'photo details' : `${rule.extensions.length} kinds` }}</small>
               </button>
               <div v-if="params.unmatchedAction !== 'keep'" class="tree-node muted"><i class="tone-dot" /><span>{{ params.otherFolder || '…' }}/</span><small>The rest</small></div>
               <p v-else class="tree-note">Unmatched files stay in place</p>
@@ -241,6 +250,14 @@ async function scan() {
           <p>Files still downloading, system files, symlinks, and files that cannot be read safely.</p>
         </section>
       </aside>
+    </div>
+
+    <div v-if="confirmRepropose" class="modal-backdrop" @click.self="confirmRepropose = false">
+      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="repropose-title">
+        <h2 id="repropose-title">Replace the current categories?</h2>
+        <p>Organize will look at the folders again and propose new categories. When you accept them, they replace the {{ params.typeRules?.length ?? 0 }} categories of this plan and their saved matching data. Files are not moved.</p>
+        <div><button class="button secondary" @click="confirmRepropose = false">Keep current</button><button class="button primary" @click="confirmRepropose = false; store.reproposeCategories()">Re-propose</button></div>
+      </section>
     </div>
 
     <footer class="action-bar config-actions">

@@ -69,10 +69,18 @@ export interface RuleIssue {
 }
 
 /** Extension → names of the enabled rules that claim it, in rule order. */
+export function ruleKind(rule: Pick<TypeRule, 'kind'>): NonNullable<TypeRule['kind']> {
+  return rule.kind ?? 'extension'
+}
+
+export function hasAiRules(profile: Profile): boolean {
+  return (profile.parameters.typeRules ?? []).some((rule) => ruleKind(rule) !== 'extension')
+}
+
 export function extensionOwners(rules: TypeRule[]): Map<string, string[]> {
   const owners = new Map<string, string[]>()
   for (const item of rules) {
-    if (!item.enabled) continue
+    if (!item.enabled || ruleKind(item) !== 'extension') continue
     for (const extension of new Set(item.extensions)) owners.set(extension, [...(owners.get(extension) ?? []), item.name || 'Unnamed category'])
   }
   return owners
@@ -86,9 +94,12 @@ export function ruleIssues(profile: Profile): RuleIssue[] {
     if (!item.enabled) continue
     if (!item.name.trim()) issues.push({ ruleId: item.id, field: 'name', message: 'Category name cannot be empty' })
     if (!validFolderName(item.folderName)) issues.push({ ruleId: item.id, field: 'folder', message: 'Subfolder name cannot be empty or contain / \\ : * ? " < > |' })
+    const kind = ruleKind(item)
+    if (kind === 'content') continue
     if (!item.extensions.length) issues.push({ ruleId: item.id, field: 'extensions', message: 'Add at least one extension' })
     for (const extension of item.extensions) {
       if (!validExtension(extension)) issues.push({ ruleId: item.id, field: 'extensions', message: `“${extension}” is not a valid extension` })
+      else if (kind !== 'extension') continue
       else if (claimed.has(extension)) issues.push({ ruleId: item.id, field: 'extensions', message: `“${extension}” already belongs to “${claimed.get(extension)}”` })
       else claimed.set(extension, item.name || 'Unnamed category')
     }

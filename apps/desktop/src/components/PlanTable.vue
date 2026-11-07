@@ -4,10 +4,13 @@ import { NModal } from 'naive-ui'
 import type { PlanItem } from '../types'
 import { formatBytes, fileName, folderName } from '../utils'
 
-const props = defineProps<{ items: PlanItem[] }>()
-const emit = defineEmits<{ toggle: [itemId: string] }>()
+const props = defineProps<{ items: PlanItem[]; categories?: Array<{ id: string; name: string }> }>()
+const emit = defineEmits<{ toggle: [itemId: string]; setCategory: [itemId: string, categoryId: string] }>()
 const search = ref('')
-const filter = ref<'all' | 'conflict' | 'skip' | 'excluded'>('all')
+const filter = ref<'all' | 'suggestions' | 'conflict' | 'skip' | 'excluded'>('all')
+const CONFIDENCE_LABELS: Record<string, string> = { high: 'High', medium: 'Med', low: 'Low' }
+const isSuggestion = (item: PlanItem) => ['content', 'analysis'].includes(String(item.metadata.source ?? ''))
+const suggestionCount = computed(() => props.items.filter(isSuggestion).length)
 const scrollTop = ref(0)
 const scrollContainer = ref<HTMLDivElement>()
 const viewportHeight = ref(0)
@@ -35,6 +38,7 @@ watch([search, filter, () => props.items.length], resetScroll, { flush: 'post' }
 
 const filtered = computed(() => props.items.filter((item) => {
   if (search.value && !`${item.sourcePath} ${item.targetPath ?? ''}`.toLocaleLowerCase().includes(search.value.toLocaleLowerCase())) return false
+  if (filter.value === 'suggestions') return isSuggestion(item)
   if (filter.value === 'conflict') return item.warningCode === 'TARGET_CONFLICT'
   if (filter.value === 'skip') return item.status === 'skipped'
   if (filter.value === 'excluded') return item.status !== 'skipped' && !item.selected
@@ -66,6 +70,7 @@ function showDetails(item: PlanItem) {
       <label class="search-box">⌕<input v-model="search" aria-label="Search file names or paths" placeholder="Search file names or paths" /></label>
       <div class="segments">
         <button :class="{ active: filter === 'all' }" @click="filter = 'all'">All {{ items.length }}</button>
+        <button v-if="suggestionCount" :class="{ active: filter === 'suggestions' }" @click="filter = 'suggestions'">Suggestions {{ suggestionCount }}</button>
         <button :class="{ active: filter === 'conflict' }" @click="filter = 'conflict'">Name clash</button>
         <button :class="{ active: filter === 'skip' }" @click="filter = 'skip'">Skip</button>
         <button :class="{ active: filter === 'excluded' }" @click="filter = 'excluded'">Excluded</button>
@@ -91,7 +96,16 @@ function showDetails(item: PlanItem) {
             <span class="destination-cell" role="cell" :title="item.targetPath ?? 'Left in place'"><span class="path-change"><em :title="item.sourcePath">{{ folderName(item.sourcePath) }}</em><i>→</i><em v-if="item.targetPath" class="target">{{ folderName(item.targetPath) }}</em><em v-else>Left in place</em></span><small v-if="item.targetPath" :title="fileName(item.targetPath)">{{ fileName(item.targetPath) }}</small></span>
             <span role="cell"><span class="op-badge" :class="item.warningCode ? 'warn' : item.operation">{{ operationLabel(item) }}</span></span>
             <span class="number" role="cell">{{ formatBytes(item.size) }}</span>
-            <span class="reason" role="cell" :title="reasonLabel(item)">{{ reasonLabel(item) }}</span>
+            <span v-if="categories && item.status !== 'skipped' && item.metadata.category" class="category-cell" role="cell" @click.stop>
+              <span class="category-line"><span class="category-chip" :title="String(item.metadata.categoryName ?? '')">{{ item.metadata.categoryName }}</span><span v-if="isSuggestion(item) || item.metadata.source === 'manual'" class="confidence-badge" :class="String(item.metadata.confidence)">{{ item.metadata.source === 'manual' ? 'Yours' : CONFIDENCE_LABELS[String(item.metadata.confidence)] }}</span></span>
+              <span class="category-line">
+                <select class="category-select" :value="String(item.metadata.category)" :aria-label="`Category for ${fileName(item.sourcePath)}`" @change="emit('setCategory', item.itemId, ($event.target as HTMLSelectElement).value)">
+                  <option v-for="category in categories" :key="category.id" :value="category.id">{{ category.name }}</option>
+                </select>
+                <button v-if="isSuggestion(item) && !item.selected" class="text-button" @click="emit('toggle', item.itemId)">Accept</button>
+              </span>
+            </span>
+            <span v-else class="reason" role="cell" :title="reasonLabel(item)">{{ reasonLabel(item) }}</span>
             <span role="cell"><button class="text-button" :aria-label="`View file details ${fileName(item.sourcePath)}`" @click.stop="showDetails(item)">Details</button></span>
           </div>
         </div>
@@ -110,6 +124,7 @@ function showDetails(item: PlanItem) {
         <dt>Action</dt><dd>{{ operationLabel(detailItem) }}</dd>
         <dt>Size</dt><dd>{{ formatBytes(detailItem.size) }} ({{ detailItem.size.toLocaleString() }} bytes)</dd>
         <dt>Notes</dt><dd>{{ reasonLabel(detailItem) }}</dd>
+        <template v-if="detailItem.metadata.categoryName"><dt>Category</dt><dd>{{ detailItem.metadata.categoryName }}{{ detailItem.metadata.confidence ? ` · ${CONFIDENCE_LABELS[String(detailItem.metadata.confidence)] ?? ''} confidence` : '' }}</dd></template>
       </dl>
       <div><button class="button secondary" @click="detailOpen = false">Close</button></div>
     </section>

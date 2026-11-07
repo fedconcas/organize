@@ -1,6 +1,11 @@
 <script setup lang="ts">
-const props = defineProps<{ step: number }>()
-const steps = ['Choose plan', 'Set folders', 'Scan', 'Preview', 'Organize', 'Result']
+import { computed } from 'vue'
+
+const props = defineProps<{ step: number; withCategories?: boolean }>()
+const steps = computed(() => props.withCategories
+  ? ['Choose plan', 'Categories', 'Set folders', 'Scan', 'Preview', 'Organize', 'Result']
+  : ['Choose plan', 'Set folders', 'Scan', 'Preview', 'Organize', 'Result'])
+const organizeStep = computed(() => steps.value.indexOf('Organize') + 1)
 </script>
 
 <template>
@@ -11,6 +16,6 @@ const steps = ['Choose plan', 'Set folders', 'Scan', 'Preview', 'Organize', 'Res
       </div>
       <i v-if="index < steps.length - 1" :class="{ done: index + 1 < props.step }" />
     </template>
-    <div class="flow-safe">♢ {{ props.step < 5 ? 'No files are changed before you confirm' : 'Where every file goes is recorded and can be undone' }}</div>
+    <div class="flow-safe">♢ {{ props.step < organizeStep ? 'No files are changed before you confirm' : 'Where every file goes is recorded and can be undone' }}</div>
   </nav>
 </template>

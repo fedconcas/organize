@@ -1,8 +1,9 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { api, notifyCompletion } from '../api'
-import { ensureClassification } from '../profiles'
-import type { HistoryDetail, HistoryRun, Plan, Preset, PresetType, Profile, QuarantineItem, RunResult, Settings, UndoPreview, ViewName } from '../types'
+import { classificationTemplate, ensureClassification } from '../profiles'
+import { acceptPayload, applySplit, draftFromProposal, type Draft } from '../proposal'
+import type { Confidence, HistoryDetail, HistoryRun, InventorySummary, Plan, Preset, PresetType, Profile, Proposal, QuarantineItem, RunResult, Settings, UndoPreview, ViewName } from '../types'
 
 const categories = ['documents', 'images', 'videos', 'audio', 'archives', 'installers', 'other']
 
@@ -47,7 +48,18 @@ export const useAppStore = defineStore('app', () => {
   const busy = ref(false)
   const theme = ref<'system' | 'light' | 'dark'>('system')
   const settings = ref<Settings>({ theme: 'system', retentionDays: 30, historyLimit: 200, redactPaths: true,
-    notifyOnComplete: true, defaultTargetFolder: '~/Documents/Organize', quarantineFolder: '' })
+    notifyOnComplete: true, defaultTargetFolder: '~/Documents/Organize', quarantineFolder: '',
+    aiEnabled: false, aiEmbedModel: 'nomic-embed-text', aiLlmModel: 'qwen2.5:3b-instruct', aiDescriptions: false, aiThreshold: 0.75, aiOcr: false })
+  // Category discovery (AnalyzePage). Nothing here is persisted by the frontend.
+  const analysisId = ref<string>()
+  const inventory = ref<InventorySummary>()
+  const proposal = ref<Proposal>()
+  const draft = ref<Draft>()
+  const analysisStage = ref<'idle' | 'reading' | 'embedding' | 'grouping' | 'naming'>('idle')
+  const analysisDone = ref(0)
+  const analysisTotal = ref(0)
+  const fromAnalysisId = ref<string>()
+  let analysisCancelled = false
   const savedProfiles = ref<Profile[]>([])
   const lastProfile = ref<Profile>()
   const notice = ref('')
@@ -62,6 +74,7 @@ export const useAppStore = defineStore('app', () => {
   function report(caught: unknown) { error.value = caught instanceof Error ? caught.message : String(caught) }
 
   function useProfile(value: Profile) {
+    fromAnalysisId.value = undefined
     profile.value = JSON.parse(JSON.stringify(value))
     ensureClassification(profile.value)
     view.value = 'config'
@@ -99,7 +112,110 @@ export const useAppStore = defineStore('app', () => {
     profile.value = makeProfile(id)
     profile.value.targetFolder = settings.value.defaultTargetFolder
     ensureClassification(profile.value)
+    fromAnalysisId.value = undefined
+    resetAnalysis()
+    // With local AI on, sorting by type starts by looking at the folders; otherwise the classic flow.
+    view.value = id === 'by-type' && settings.value.aiEnabled ? 'analyze' : 'config'
+  }
+
+  function resetAnalysis() {
+    analysisId.value = undefined
+    inventory.value = undefined
+    proposal.value = undefined
+    draft.value = undefined
+    analysisStage.value = 'idle'
+  }
+
+  async function scanFolders() {
+    busy.value = true
+    error.value = undefined
+    analysisCancelled = false
+    proposal.value = draft.value = undefined
+    analysisStage.value = 'reading'
+    analysisDone.value = analysisTotal.value = 0
+    try {
+      const result = await api.request<{ analysisId: string; summary: InventorySummary }>('analysis.scan', {
+        sourceFolders: profile.value.sourceFolders, includeSubfolders: profile.value.includeSubfolders,
+      })
+      if (analysisCancelled) return
+      analysisId.value = result.analysisId
+      inventory.value = result.summary
+    } catch (caught) { if (!analysisCancelled) report(caught) } finally { analysisStage.value = 'idle'; busy.value = false }
+  }
+
+  async function proposeCategories(mode: 'ai' | 'heuristic' = 'ai') {
+    if (!analysisId.value) return
+    busy.value = true
+    error.value = undefined
+    analysisCancelled = false
+    analysisStage.value = 'reading'
+    analysisDone.value = analysisTotal.value = 0
+    try {
+      const result = await api.request<Proposal>('analysis.discover', { analysisId: analysisId.value, options: { mode } })
+      if (analysisCancelled) return
+      proposal.value = result
+      draft.value = result.tooFew ? undefined : draftFromProposal(result)
+    } catch (caught) { if (!analysisCancelled) report(caught) } finally { analysisStage.value = 'idle'; busy.value = false }
+  }
+
+  async function cancelAnalysis() {
+    analysisCancelled = true
+    analysisStage.value = 'idle'
+    busy.value = false
+    proposal.value = draft.value = undefined
+    await api.request('analysis.cancel')
+  }
+
+  async function splitCategory(categoryId: string) {
+    if (!draft.value) return
+    busy.value = true
+    try {
+      const result = await api.request<Proposal>('analysis.split', { analysisId: draft.value.analysisId, categoryId })
+      draft.value = applySplit(draft.value, result)
+    } catch (caught) { report(caught) } finally { busy.value = false }
+  }
+
+  async function acceptCategories() {
+    if (!draft.value) return
+    busy.value = true
+    try {
+      const payload = acceptPayload(draft.value)
+      const result = await api.request<{ profile: Profile; analysisId: string }>('analysis.accept', { ...payload, profile: profile.value })
+      profile.value = result.profile
+      fromAnalysisId.value = result.analysisId
+      notice.value = 'Categories saved for this plan. Choose where to put them, then scan.'
+      view.value = 'config'
+    } catch (caught) { report(caught) } finally { busy.value = false }
+  }
+
+  function useStandardCategories() {
+    profile.value.parameters.typeRules = classificationTemplate()
+    profile.value.parameters.unmatchedAction = 'other'
+    profile.value.parameters.otherFolder ??= 'Other files'
+    fromAnalysisId.value = undefined
     view.value = 'config'
+  }
+
+  function reproposeCategories() {
+    fromAnalysisId.value = undefined
+    resetAnalysis()
+    view.value = 'analyze'
+  }
+
+  async function setItemCategory(itemId: string, categoryId: string) {
+    if (!plan.value) return
+    try {
+      await persistSelection()
+      plan.value = await api.request<Plan>('plan.setItemCategory', { planId: plan.value.planId, itemId, categoryId })
+    } catch (caught) { report(caught) }
+  }
+
+  async function acceptSuggestions(minConfidence: Confidence = 'high') {
+    if (!plan.value) return
+    try {
+      await persistSelection()
+      plan.value = await api.request<Plan>('plan.acceptSuggestions', { planId: plan.value.planId, minConfidence })
+    } catch (caught) { report(caught) }
   }
 
   async function initialize() {
@@ -111,6 +227,11 @@ export const useAppStore = defineStore('app', () => {
     engineReady.value = false
     try {
       unsubscribeEvents ??= api.onEvent(({ event, payload }) => {
+        if (event === 'analysis.progress' && analysisStage.value !== 'idle') {
+          analysisStage.value = (payload.stage as typeof analysisStage.value) ?? analysisStage.value
+          analysisDone.value = Number(payload.done ?? 0)
+          analysisTotal.value = Number(payload.total ?? 0)
+        }
         if (event === 'plan.progress') {
           scanChecked.value = Number(payload.checked ?? payload.hashed ?? scanChecked.value)
           scanPath.value = String(payload.path ?? scanPath.value)
@@ -164,7 +285,7 @@ export const useAppStore = defineStore('app', () => {
     scanPath.value = profile.value.sourceFolders[0] ?? ''
     view.value = 'scan'
     try {
-      plan.value = await api.request<Plan>('plan.create', { profile: profile.value })
+      plan.value = await api.request<Plan>('plan.create', { profile: profile.value, ...(fromAnalysisId.value ? { fromAnalysisId: fromAnalysisId.value } : {}) })
       if (scanCancelled) return
       lastProfile.value = JSON.parse(JSON.stringify(profile.value))
       view.value = profile.value.presetType === 'duplicates' ? 'duplicates' : 'preview'
@@ -303,6 +424,9 @@ export const useAppStore = defineStore('app', () => {
   }
 
   return {
+    analysisId, inventory, proposal, draft, analysisStage, analysisDone, analysisTotal, fromAnalysisId,
+    scanFolders, proposeCategories, cancelAnalysis, splitCategory, acceptCategories, useStandardCategories, reproposeCategories,
+    setItemCategory, acceptSuggestions, resetAnalysis,
     view, presets, profile, plan, result, undoPreview, history, historyDetail, quarantine, engineReady, startupState, startupError, error,
     scanChecked, scanPath, scanLabel, runCompleted, runCurrent, busy, theme, settings, savedProfiles, lastProfile, notice, runSuccess, runSkipped, runFailed,
     useProfile, saveProfile, deleteProfile, updateSettings, report,

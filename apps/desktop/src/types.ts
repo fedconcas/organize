@@ -1,6 +1,7 @@
 export type ViewName =
   | 'onboarding'
   | 'home'
+  | 'analyze'
   | 'config'
   | 'scan'
   | 'preview'
@@ -42,12 +43,78 @@ export interface Profile {
   schemaVersion: number
 }
 
+export type RuleKind = 'extension' | 'metadata' | 'content'
+
+export interface MetadataMatch {
+  isScreenshot?: boolean
+  hasCamera?: boolean
+  isScan?: boolean
+  minPixels?: number
+  dateTakenRange?: [string | null, string | null]
+  anyOf?: MetadataMatch[]
+}
+
 export interface TypeRule {
   id: string
   name: string
   folderName: string
   extensions: string[]
   enabled: boolean
+  kind?: RuleKind
+  match?: MetadataMatch
+  centroidRef?: string
+  description?: string
+}
+
+export type Confidence = 'high' | 'medium' | 'low'
+
+export interface InventorySummary {
+  files: number
+  bytes: number
+  families: Record<string, number>
+  topExtensions: Array<{ extension: string; count: number }>
+  photos: number
+  screenshots: number
+  withDateTaken: number
+  withLocation: number
+}
+
+export interface ProposalExample { index: number; name: string }
+
+export interface ProposalCategory {
+  id: string
+  kind: RuleKind
+  name: string
+  folderName: string
+  description?: string | null
+  count: number
+  examples: ProposalExample[]
+  confidence: Record<Confidence, number>
+  splittable: boolean
+}
+
+export interface Proposal {
+  analysisId: string
+  mode: 'ai' | 'heuristic'
+  notice?: 'AI_DISABLED' | 'AI_UNAVAILABLE' | 'NAMING_FALLBACK' | null
+  tooFew: boolean
+  total: number
+  categories: ProposalCategory[]
+  other: { count: number; examples: ProposalExample[] }
+  maxCategories: number
+  created?: string[]
+  replaced?: string
+}
+
+export interface ClassifierStatus {
+  aiEnabled: boolean
+  ollamaInstalled: boolean
+  vectorBackend: string
+  maxCategories: number
+  models: string[] | null
+  embedModelInstalled: boolean | null
+  llmModelInstalled: boolean | null
+  error: string | null
 }
 
 export interface Settings {
@@ -58,6 +125,12 @@ export interface Settings {
   notifyOnComplete: boolean
   defaultTargetFolder: string
   quarantineFolder: string
+  aiEnabled: boolean
+  aiEmbedModel: string
+  aiLlmModel: string
+  aiDescriptions: boolean
+  aiThreshold: number
+  aiOcr: boolean
 }
 
 export interface PlanItem {
@@ -84,6 +157,9 @@ export interface PlanSummary {
   skip: number
   conflict: number
   groups: number
+  suggestions?: number
+  fromAnalysisId?: string
+  aiNotice?: string
 }
 
 export interface Plan {

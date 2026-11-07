@@ -10,11 +10,13 @@ const compile = source => ts.transpileModule(source, { compilerOptions: { target
 const apiUrl = moduleUrl('export const api = {}; export const notifyCompletion = async () => {}')
 const { api } = await import(apiUrl)
 const profilesUrl = moduleUrl(compile(await readFile(new URL('../src/profiles.ts', import.meta.url), 'utf8')))
+const proposalUrl = moduleUrl(compile(await readFile(new URL('../src/proposal.ts', import.meta.url), 'utf8')))
 const storeSource = compile(await readFile(new URL('../src/stores/app.ts', import.meta.url), 'utf8'))
   .replaceAll("from 'vue'", `from '${import.meta.resolve('vue')}'`)
   .replaceAll("from 'pinia'", `from '${import.meta.resolve('pinia')}'`)
   .replaceAll("from '../api'", `from '${apiUrl}'`)
   .replaceAll("from '../profiles'", `from '${profilesUrl}'`)
+  .replaceAll("from '../proposal'", `from '${proposalUrl}'`)
 const { useAppStore } = await import(moduleUrl(storeSource))
 let subscriptions, requests
 const responses = {

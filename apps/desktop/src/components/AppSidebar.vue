@@ -18,7 +18,7 @@ const modules: Array<{ id: PresetType; icon: string; label: string; tone: string
   { id: 'duplicates', icon: 'duplicate', label: 'Duplicate files', tone: 'pink' },
 ]
 const locked = computed(() => store.view === 'executing' || store.view === 'scan')
-const inFlow = computed(() => ['config', 'scan', 'preview', 'duplicates', 'executing', 'result'].includes(store.view))
+const inFlow = computed(() => ['analyze', 'config', 'scan', 'preview', 'duplicates', 'executing', 'result'].includes(store.view))
 
 function navigate(view: ViewName) {
   if (locked.value) return

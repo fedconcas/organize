@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAppStore } from '../stores/app'
-import { CLASSIFICATION_TEMPLATES, classificationTemplate, ensureClassification, extensionOwners, newRuleName, type RuleIssue } from '../profiles'
+import { CLASSIFICATION_TEMPLATES, classificationTemplate, ensureClassification, extensionOwners, newRuleName, ruleKind, type RuleIssue } from '../profiles'
 import type { TypeRule } from '../types'
 import AppIcon from './AppIcon.vue'
 import ExtensionInput from './ExtensionInput.vue'
@@ -43,6 +43,7 @@ const ICONS: Array<[RegExp, string]> = [
 ]
 const iconFor = (rule: TypeRule) => ICONS.find(([pattern]) => pattern.test(rule.id) || pattern.test(rule.name))?.[1] ?? 'tag'
 
+const KIND_BADGES = { content: 'AI · content', metadata: 'Photo details', extension: '' } as const
 function toggle(id: string) { expanded.value = expanded.value === id ? undefined : id }
 function rename(rule: TypeRule, value: string) {
   if (rule.folderName === rule.name) rule.folderName = value
@@ -110,7 +111,9 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentClick)
           <SwitchToggle v-model="rule.enabled" :label="`Enable category ${rule.name}`" />
           <span class="rule-name"><i class="rule-glyph"><AppIcon :name="iconFor(rule)" :size="15" /></i><b>{{ rule.name || 'Unnamed category' }}</b></span>
           <code class="rule-folder" :title="`${targetName}/${rule.folderName}`"><i>{{ targetName }}/</i>{{ rule.folderName || '…' }}</code>
-          <span class="rule-exts">
+          <span v-if="ruleKind(rule) === 'content'" class="rule-exts"><em class="kind-badge content">{{ KIND_BADGES.content }}</em><span class="ext-empty">Matched by what the files contain</span></span>
+          <span v-else class="rule-exts">
+            <em v-if="ruleKind(rule) === 'metadata'" class="kind-badge metadata">{{ KIND_BADGES.metadata }}</em>
             <span v-for="extension in rule.extensions.slice(0, 6)" :key="extension" class="ext-chip mini" :class="{ conflict: conflictsFor(rule).has(extension) }">{{ extension }}</span>
             <span v-if="rule.extensions.length > 6" class="ext-more">+{{ rule.extensions.length - 6 }}</span>
             <span v-if="!rule.extensions.length" class="ext-empty">No extensions set</span>
@@ -131,7 +134,8 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentClick)
             <span class="prefixed-input"><em>{{ targetName }}/</em><input v-model="rule.folderName" maxlength="120" /></span>
             <small v-for="issue in issuesFor(rule.id, 'folder')" :key="issue.message">{{ issue.message }}</small>
           </label>
-          <div class="field wide" :class="{ error: issuesFor(rule.id, 'extensions').length }">
+          <p v-if="ruleKind(rule) !== 'extension'" class="field wide kind-note">{{ ruleKind(rule) === 'content' ? 'Files are matched to this category by their content, using the examples you accepted. Matching happens on this Mac.' : 'Photos are matched by their details (date taken, camera, screenshot). Location and camera details are not stored.' }}</p>
+          <div v-else class="field wide" :class="{ error: issuesFor(rule.id, 'extensions').length }">
             <span>Extensions<em>Press Enter, Space or comma to confirm; Backspace removes the last one</em></span>
             <ExtensionInput v-model="rule.extensions" :label="`${rule.name} extensions`" :conflicts="conflictsFor(rule)" />
             <small v-for="issue in issuesFor(rule.id, 'extensions')" :key="issue.message">{{ issue.message }}</small>
