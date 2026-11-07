@@ -15,6 +15,7 @@ class RpcServer:
         self.requests: "queue.Queue[Dict[str, Any]]" = queue.Queue()
         self.write_lock = threading.Lock()
         self.plan_cancel = threading.Event()
+        self.analysis_cancel = threading.Event()
 
     def write(self, payload: Dict[str, Any]) -> None:
         with self.write_lock:
@@ -34,6 +35,9 @@ class RpcServer:
                     self.write({"id": request.get("id"), "result": {"accepted": True}})
                 elif method == "plan.cancel":
                     self.plan_cancel.set()
+                    self.write({"id": request.get("id"), "result": {"accepted": True}})
+                elif method == "analysis.cancel":
+                    self.analysis_cancel.set()
                     self.write({"id": request.get("id"), "result": {"accepted": True}})
                 else:
                     self.requests.put(request)
@@ -63,7 +67,30 @@ class RpcServer:
                 params["profile"],
                 lambda data: self.event("plan.%s" % data.get("type", "progress"), data),
                 self.plan_cancel.is_set,
+                params.get("fromAnalysisId"),
             )
+        if method == "plan.setItemCategory":
+            return self.service.set_item_category(params["planId"], params["itemId"], params["categoryId"])
+        if method == "plan.acceptSuggestions":
+            return self.service.accept_suggestions(params["planId"], params.get("minConfidence", "high"))
+        if method == "classifier.status":
+            return self.service.classifier_status(bool(params.get("probe", False)))
+        if method.startswith("analysis."):
+            self.analysis_cancel.clear()
+            events = lambda data: self.event("analysis.progress", data)  # noqa: E731
+            if method == "analysis.scan":
+                return self.service.analysis_scan(params, events, self.analysis_cancel.is_set)
+            if method == "analysis.discover":
+                return self.service.analysis_discover(params["analysisId"], params.get("options") or {},
+                                                      events, self.analysis_cancel.is_set)
+            if method == "analysis.split":
+                return self.service.analysis_split(params["analysisId"], params["categoryId"], events,
+                                                   self.analysis_cancel.is_set)
+            if method == "analysis.accept":
+                return self.service.analysis_accept(params["analysisId"], params["profile"], params["categories"],
+                                                    params.get("moves"))
+        if method == "ai.clearData":
+            return self.service.clear_ai_data()
         if method == "plan.get":
             return self.service.get_plan(params["planId"])
         if method == "plan.excludeItems":

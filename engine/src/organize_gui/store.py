@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 # Presets that were removed from the app. Profiles that use them can no longer be planned.
 REMOVED_PRESETS = ("similar-photos",)
@@ -118,6 +118,37 @@ class Store:
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value_json TEXT NOT NULL
+            );
+            -- Version 4: local AI categories. Vectors only; no file text is ever stored.
+            CREATE TABLE IF NOT EXISTS content_cache (
+                content_sha256 TEXT NOT NULL,
+                embed_model TEXT NOT NULL,
+                signal_version INTEGER NOT NULL,
+                prompt_version INTEGER NOT NULL DEFAULT 0,
+                taxonomy_hash TEXT NOT NULL DEFAULT '',
+                vector BLOB NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (content_sha256, embed_model, signal_version)
+            );
+            CREATE TABLE IF NOT EXISTS category_models (
+                ref TEXT PRIMARY KEY,
+                profile_id TEXT NOT NULL,
+                embed_model TEXT NOT NULL,
+                signal_version INTEGER NOT NULL,
+                centroid BLOB NOT NULL,
+                example_count INTEGER NOT NULL,
+                threshold REAL NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_category_models_profile ON category_models(profile_id);
+            CREATE TABLE IF NOT EXISTS analysis_assignments (
+                analysis_id TEXT NOT NULL,
+                path_key TEXT NOT NULL,
+                fingerprint_json TEXT NOT NULL,
+                category_ref TEXT NOT NULL,
+                confidence TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY (analysis_id, path_key)
             );
             """
         )
@@ -452,6 +483,98 @@ class Store:
             "integrity": result[0] if result is not None else "unknown",
             "schemaVersion": SCHEMA_VERSION,
         }
+
+    # ---- local AI data (vectors, centroids, short-lived assignments)
+    def cached_vectors(self, keys: List[str], model: str, signal_version: int) -> Dict[str, bytes]:
+        result: Dict[str, bytes] = {}
+        db = self.connection()
+        for start in range(0, len(keys), 500):
+            chunk = keys[start:start + 500]
+            placeholders = ",".join("?" for _ in chunk)
+            for row in db.execute(
+                "SELECT content_sha256, vector FROM content_cache WHERE embed_model=? AND signal_version=? "
+                "AND content_sha256 IN (%s)" % placeholders, [model, signal_version, *chunk],
+            ):
+                result[row[0]] = row[1]
+        return result
+
+    def cache_vectors(self, rows: List[tuple], model: str, signal_version: int, now: str) -> None:
+        with self.connection() as db:
+            db.executemany(
+                "INSERT OR REPLACE INTO content_cache(content_sha256, embed_model, signal_version, vector, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                [(key, model, signal_version, blob, now) for key, blob in rows],
+            )
+
+    def replace_category_models(self, profile_id: str, models: List[Dict[str, Any]]) -> None:
+        with self.connection() as db:
+            db.execute("DELETE FROM category_models WHERE profile_id=?", (profile_id,))
+            db.executemany(
+                "INSERT OR REPLACE INTO category_models VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                [(m["ref"], profile_id, m["embedModel"], m["signalVersion"], m["centroid"],
+                  m["exampleCount"], m["threshold"], m["createdAt"]) for m in models],
+            )
+
+    def category_models(self, refs: List[str]) -> Dict[str, Dict[str, Any]]:
+        if not refs:
+            return {}
+        placeholders = ",".join("?" for _ in refs)
+        rows = self.connection().execute(
+            "SELECT * FROM category_models WHERE ref IN (%s)" % placeholders, refs).fetchall()
+        return {row["ref"]: dict(row) for row in rows}
+
+    def save_assignments(self, analysis_id: str, rows: List[Dict[str, Any]], now: str) -> None:
+        with self.connection() as db:
+            db.execute("DELETE FROM analysis_assignments WHERE analysis_id=?", (analysis_id,))
+            db.executemany(
+                "INSERT OR REPLACE INTO analysis_assignments VALUES (?, ?, ?, ?, ?, ?)",
+                [(analysis_id, row["pathKey"], self._json(row["fingerprint"]), row["categoryRef"],
+                  row["confidence"], now) for row in rows],
+            )
+
+    def assignments(self, analysis_id: str) -> Dict[str, Dict[str, Any]]:
+        rows = self.connection().execute(
+            "SELECT * FROM analysis_assignments WHERE analysis_id=?", (analysis_id,)).fetchall()
+        return {row["path_key"]: {"fingerprint": json.loads(row["fingerprint_json"]),
+                                  "categoryRef": row["category_ref"], "confidence": row["confidence"]}
+                for row in rows}
+
+    def delete_assignments(self, analysis_id: Optional[str] = None, older_than: Optional[str] = None) -> None:
+        with self.connection() as db:
+            if analysis_id:
+                db.execute("DELETE FROM analysis_assignments WHERE analysis_id=?", (analysis_id,))
+            if older_than:
+                db.execute("DELETE FROM analysis_assignments WHERE created_at < ?", (older_than,))
+
+    def clear_ai_data(self) -> Dict[str, int]:
+        counts = {}
+        with self.connection() as db:
+            for table in ("content_cache", "category_models", "analysis_assignments"):
+                counts[table] = db.execute("SELECT COUNT(*) FROM %s" % table).fetchone()[0]
+                db.execute("DELETE FROM %s" % table)
+        self.connection().execute("VACUUM")
+        return counts
+
+    def update_item(self, plan_id: str, item: Dict[str, Any]) -> None:
+        with self.connection() as db:
+            db.execute(
+                "UPDATE plan_items SET operation=?, status=?, target_path=?, selected=?, warning_code=?, reason=?, "
+                "metadata_json=? WHERE plan_id=? AND item_id=?",
+                (item["operation"], item["status"], item.get("target_path"), 1 if item.get("selected") else 0,
+                 item.get("warning_code"), item.get("reason"), self._json(item.get("metadata", {})),
+                 plan_id, item["item_id"]),
+            )
+
+    def refresh_summary(self, plan_id: str) -> None:
+        plan = self.get_plan(plan_id)
+        chosen = [item for item in plan["items"] if item["selected"]]
+        summary = plan["summary"]
+        summary.update(selected=len(chosen), selectedBytes=sum(item["size"] for item in chosen),
+                       move=sum(item["operation"] == "move" for item in chosen),
+                       quarantine=sum(item["operation"] == "quarantine" for item in chosen),
+                       conflict=sum(bool(item.get("warning_code")) for item in plan["items"]))
+        with self.connection() as db:
+            db.execute("UPDATE plans SET summary_json=? WHERE plan_id=?", (self._json(summary), plan_id))
 
     def recent_failures(self, limit: int = 20) -> List[Dict[str, Any]]:
         rows = self.connection().execute(

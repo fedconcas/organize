@@ -18,8 +18,9 @@ from .presets import (
     IMAGE_EXTENSIONS,
     INSTALLER_EXTENSIONS,
 )
+from .classify.classifier import ContentClassifier, metadata_matches
 from .photo_meta import read_meta
-from .profiles import normalized_extension, type_configuration, validate_type_configuration
+from .profiles import normalized_extension, rule_kind, type_configuration, validate_type_configuration
 from .store import Store
 from .v3_core import (
     CORE_VERSION,
@@ -151,12 +152,16 @@ class Planner:
     def __init__(self, store: Store, quarantine_root: Path) -> None:
         self.store = store
         self.quarantine_root = quarantine_root
+        # Set by the service: () -> settings dict, and an optional model-session factory (tests).
+        self.ai_settings: Callable[[], Dict[str, Any]] = lambda: {"aiEnabled": False}
+        self.session_factory: Optional[Callable[[], Any]] = None
 
     def create(
         self,
         profile: Dict[str, Any],
         progress: Progress = None,
         cancelled: CancelledCheck = None,
+        from_analysis: Optional[str] = None,
     ) -> Dict[str, Any]:
         issues = validate_profile(profile)
         if issues:
@@ -164,11 +169,15 @@ class Planner:
         now = utc_now()
         plan_id = uuid.uuid4().hex
         preset = profile["presetType"]
+        extra: Dict[str, Any] = {}
         if preset == "duplicates":
             items = self._duplicates(plan_id, profile, progress, cancelled)
+        elif preset == "by-type":
+            items, extra = self._by_type(plan_id, profile, progress, cancelled, from_analysis)
         else:
             items = self._regular(plan_id, profile, progress, cancelled)
         summary = self._summary(items)
+        summary.update(extra)
         self.store.save_profile(profile, iso(now))
         self.store.save_plan(
             plan_id,
@@ -182,6 +191,130 @@ class Planner:
         if progress:
             progress({"type": "completed", "planId": plan_id, "summary": summary})
         return result
+
+    def _by_type(
+        self,
+        plan_id: str,
+        profile: Dict[str, Any],
+        progress: Progress,
+        cancelled: CancelledCheck,
+        from_analysis: Optional[str],
+    ):
+        """extension rules -> metadata rules -> content rules (analysis assignment, else nearest centroid)."""
+        sources = [absolute_path(item) for item in profile["sourceFolders"]]
+        target = absolute_path(profile["targetFolder"])
+        recursive = bool(profile.get("includeSubfolders", False))
+        rules, unmatched, other_folder = type_configuration(profile)
+        enabled = [rule for rule in rules if rule["enabled"]]
+        by_id = {rule["id"]: rule for rule in enabled}
+        extension_rules = [(rule, extension_filter([normalized_extension(value) for value in rule["extensions"]]))
+                           for rule in enabled if rule_kind(rule) == "extension"]
+        metadata_rules = [(rule, {normalized_extension(value) for value in rule.get("extensions", [])})
+                          for rule in enabled if rule_kind(rule) == "metadata"]
+        content_rules = [rule for rule in enabled if rule_kind(rule) == "content"]
+        assignments = self.store.assignments(from_analysis) if from_analysis else {}
+        settings = self.ai_settings()
+
+        decisions: List[Any] = []
+        pending: List[Path] = []
+        metas: Dict[Path, Dict[str, Any]] = {}
+        for resource, skip_reason in scan_files(sources, recursive, progress, cancelled):
+            source = resource.path
+            if source is None:
+                continue
+            if skip_reason:
+                decisions.append((source, None, None, skip_reason))
+                continue
+            assigned = assignments.get(path_key(source))
+            if assigned and assigned["fingerprint"] == fingerprint(source):
+                ref = assigned["categoryRef"]
+                confidence = assigned["confidence"]
+                manual = confidence.startswith("manual:")
+                confidence = confidence.split(":", 1)[-1]
+                if ref in by_id:
+                    rule = by_id[ref]
+                    source_kind = "manual" if manual else "analysis" if rule_kind(rule) == "content" else rule_kind(rule)
+                    decisions.append((source, rule, (confidence, source_kind), None))
+                    continue
+                if ref == "other":
+                    decisions.append((source, None, ("high", "analysis"), None))
+                    continue
+            root = resource.basedir or source.parent
+            rule = next((candidate for candidate, filter_instance in extension_rules
+                         if apply(filter_instance, resource_for(source, root))), None)
+            if rule is not None:
+                decisions.append((source, rule, ("high", "extension"), None))
+                continue
+            extension = source.suffix.lower().lstrip(".")
+            candidates = [candidate for candidate, scope in metadata_rules if not scope or extension in scope]
+            if candidates:
+                meta = read_meta(source)
+                metas[source] = meta
+                rule = next((candidate for candidate in candidates
+                             if metadata_matches(candidate.get("match", {}), meta, source.name)), None)
+                if rule is not None:
+                    decisions.append((source, rule, ("high", "metadata"), None))
+                    continue
+            if content_rules:
+                pending.append(source)
+                decisions.append((source, "pending", None, None))
+            else:
+                decisions.append((source, None, None, None))
+
+        notice = None
+        matched: Dict[Path, Any] = {}
+        if pending:
+            if progress:
+                progress({"type": "progress", "core": CORE_VERSION, "stage": "classify", "checked": len(pending),
+                          "label": "Matching files to your categories"})
+            classifier = ContentClassifier(self.store, content_rules, settings.get("aiEmbedModel", ""),
+                                           bool(settings.get("aiEnabled")), self.session_factory)
+            matched, notice = classifier.classify(pending, metas, cancelled)
+
+        occupied: Set[str] = set()
+        items: List[Dict[str, Any]] = []
+        suggestions = 0
+        for source, rule, decision, skip_reason in decisions:
+            if skip_reason:
+                items.append(self._item(plan_id, len(items), source, None, "skip", False, skip_reason))
+                continue
+            reason = None
+            if rule == "pending":
+                found = matched.get(source)
+                if found:
+                    rule, confidence, _ = found
+                    decision = (confidence, "content")
+                else:
+                    rule = None
+                    reason = ("Not classified: local AI is off" if notice == "AI_DISABLED"
+                              else "Not classified: local AI unavailable" if notice == "AI_UNAVAILABLE"
+                              else "No category was a close match")
+            if rule is None and unmatched != "other":
+                item = self._item(plan_id, len(items), source, None, "skip", False, reason or "Unmatched category, left in place")
+            else:
+                folder = rule["folderName"] if rule else other_folder
+                destination, renamed = unique_destination(target / folder / source.name, occupied)
+                confidence, origin = decision or ("high", "unmatched")
+                selected = not (origin in {"content", "analysis"} and confidence != "high")
+                item = self._item(plan_id, len(items), source, destination, "move", selected, reason)
+                item["metadata"].update({
+                    "category": rule["id"] if rule else "other",
+                    "categoryName": rule["name"] if rule else other_folder,
+                    "confidence": confidence,
+                    "source": origin,
+                })
+                if origin in {"content", "analysis"}:
+                    suggestions += 1
+                if renamed:
+                    item["warningCode"] = "TARGET_CONFLICT"
+            item["metadata"]["organizeCore"] = CORE_VERSION
+            items.append(item)
+        extra: Dict[str, Any] = {"suggestions": suggestions}
+        if from_analysis:
+            extra["fromAnalysisId"] = from_analysis
+        if notice:
+            extra["aiNotice"] = notice
+        return items, extra
 
     def _regular(
         self,
