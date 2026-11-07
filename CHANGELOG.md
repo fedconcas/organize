@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - Desktop: similar-photos scan finds exact duplicates and perceptually similar photos, including rotated or flipped copies, then quarantines unkept files with undo. HEIC on macOS is decoded with the system `sips` tool.
+- Fixed #500: `rename_existing` conflict messages now show the generated filename.
 - Fixed #438 (`filecontent` filter fails for PDFs when `pdftotext` isn't installed, instead of falling back to `pdfminer`)
 
 ## v3.3.0 (2024-11-25)
