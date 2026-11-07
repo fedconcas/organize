@@ -1,17 +1,17 @@
-# MPL-2.0 对应源码 / Corresponding Source
+# MPL-2.0 Corresponding Source
 
-本发行包以 MPL-2.0 提供以下原始、未修改的对应版本源码。
-源码随应用免费附带，无需联网、付费或登录。
+This distribution provides the following original, unmodified corresponding-version source code under MPL-2.0.
+The source comes bundled with the app free of charge; no network, payment or login is needed.
 
-获取：关于与诊断 → 开源许可证与源码 → 打开 MPL 源码归档；
-或 macOS 显示包内容 → Contents/Resources/legal/MPL-SOURCES.zip。
+To get it: About & diagnostics → Open-source licenses and source code → Open MPL source archive;
+or in macOS, Show Package Contents → Contents/Resources/legal/MPL-SOURCES.zip.
 
-先解压 ZIP；每个 .crate 是标准 tar.gz，使用 tar -xzf <name-version.crate> 解压。
-所有原始源码、Cargo.toml 与原许可/版权头均保留；MPL-2.0.txt 提供许可全文。
-option-ext 属于桌面运行依赖。symphonia 系列随 czkawka_core 进入相似照片依赖图，
-本功能不调用音频工具，仍按 MPL-2.0 附带未修改源码。其余组件主要用于构建或宏展开。
-独立的 MIT 代码不因该归档而整体变为 MPL。修改这些 MPL 文件后再发行时，
-必须提供实际修改后的对应源码，而不能继续声称此处未修改。
+Unzip the ZIP first; each .crate is a standard tar.gz, extract it with tar -xzf <name-version.crate>.
+All original source, Cargo.toml and the original license/copyright headers are kept; MPL-2.0.txt provides the full license text.
+option-ext is a desktop runtime dependency. The symphonia crates enter the similar-photos dependency graph through czkawka_core;
+this feature does not call any audio tools, and the unmodified source is still shipped under MPL-2.0. The remaining components are mainly used for building or macro expansion.
+Independent MIT code does not become MPL as a whole because of this archive. When you redistribute after modifying these MPL files,
+you must provide the actual modified corresponding source, and must not keep claiming that it is unmodified here.
 
 - cssparser 0.37.0
   Source: https://crates.io/api/v1/crates/cssparser/0.37.0/download

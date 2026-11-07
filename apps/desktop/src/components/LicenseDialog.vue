@@ -11,13 +11,13 @@ const search = ref('')
 const status = ref('')
 const tab = ref<'project' | 'components' | 'sources' | 'brand'>('project')
 const tabs = [
-  { id: 'project', label: '项目许可' }, { id: 'components', label: '第三方组件' },
-  { id: 'sources', label: 'MPL 源码' }, { id: 'brand', label: '独立品牌' },
+  { id: 'project', label: 'Project license' }, { id: 'components', label: 'Third-party components' },
+  { id: 'sources', label: 'MPL Source' }, { id: 'brand', label: 'Independent branding' },
 ] as const
 watch(() => props.show, async (show) => {
   if (!show || data.value) return
   try { data.value = (await import('../generated/legal-notices.json')).default }
-  catch { status.value = '许可材料加载失败，请查看安装包 Contents/Resources/legal 或重新安装。' }
+  catch { status.value = 'Failed to load license materials; check the package Contents/Resources/legal or reinstall.' }
 }, { immediate: true })
 const components = computed(() => (data.value?.components ?? []).filter((p) =>
   `${p.name} ${p.version} ${p.license} ${p.ecosystem}`.toLocaleLowerCase().includes(search.value.toLocaleLowerCase()),
@@ -25,30 +25,30 @@ const components = computed(() => (data.value?.components ?? []).filter((p) =>
 async function open(resource: 'licenses' | 'mpl-sources') {
   try {
     status.value = await openLegalResource(resource)
-      ? '已打开安装包内的许可资源。'
-      : '当前是浏览器演示。桌面安装包附带全部材料；开发者可查看仓库 legal/generated。'
+      ? 'Opened the license resources inside the package.'
+      : 'This is a browser demo. The desktop package includes all materials; developers can check the repository legal/generated. '
   } catch (error) { status.value = error instanceof Error ? error.message : String(error) }
 }
 </script>
 
 <template>
-  <NModal :show="show" preset="card" title="开源许可证与源码" :style="{ width: 'min(900px, calc(100vw - 48px))' }" :bordered="false" @update:show="emit('update:show', $event)">
-    <div class="license-actions"><button class="button secondary" @click="open('licenses')">打开许可文件夹</button><button class="button secondary" @click="open('mpl-sources')">打开 MPL 源码归档</button></div>
+  <NModal :show="show" preset="card" title="Open-source licenses and source code" :style="{ width: 'min(900px, calc(100vw - 48px))' }" :bordered="false" @update:show="emit('update:show', $event)">
+    <div class="license-actions"><button class="button secondary" @click="open('licenses')">Open licenses folder</button><button class="button secondary" @click="open('mpl-sources')">Open MPL source archive</button></div>
     <p v-if="status" class="license-status" role="status">{{ status }}</p>
-    <nav class="license-tabs" aria-label="许可说明分类"><button v-for="item in tabs" :key="item.id" :class="{ active: tab === item.id }" :aria-pressed="tab === item.id" @click="tab = item.id">{{ item.label }}</button></nav>
-    <div class="license-content" tabindex="0" aria-label="许可全文，可滚动">
+    <nav class="license-tabs" aria-label="License notice categories"><button v-for="item in tabs" :key="item.id" :class="{ active: tab === item.id }" :aria-pressed="tab === item.id" @click="tab = item.id">{{ item.label }}</button></nav>
+    <div class="license-content" tabindex="0" aria-label="Full license text, scrollable">
       <template v-if="data">
-        <template v-if="tab === 'project'"><h3>Organize · 独立桌面衍生项目</h3><p>基于 Thomas Feldmann 的 organize，保留上游 MIT 许可与署名。新增桌面代码和原创图标按 MIT 提供；第三方组件分别遵守其许可证。软件许可不授予第三方商标权。</p><pre>{{ data.mit }}</pre></template>
+        <template v-if="tab === 'project'"><h3>Organize · Independent desktop derivative project</h3><p>Based on Thomas Feldmann’s organize, keeping the upstream MIT license and attribution. New desktop code and original icons are provided under MIT; third-party components follow their own licenses. The software license grants no third-party trademark rights.</p><pre>{{ data.mit }}</pre></template>
         <template v-else-if="tab === 'components'">
-          <label class="license-search">搜索组件、版本或许可<input v-model="search" type="search" placeholder="例如 option-ext / MPL / Python" /></label>
-          <p>{{ components.length }} 个结果 · {{ data.target }}。清单保守涵盖运行与构建依赖，不代表全部链接进应用。</p>
+          <label class="license-search">Search components, versions or licenses<input v-model="search" type="search" placeholder="e.g. option-ext / MPL / Python" /></label>
+          <p>{{ components.length }} results · {{ data.target }}. The list conservatively covers runtime and build dependencies; it does not mean everything is linked into the app.</p>
           <details v-for="p in components" :key="`${p.ecosystem}:${p.name}@${p.version}`"><summary>{{ p.name }} {{ p.version }} · {{ p.license }}</summary><p>{{ p.ecosystem }} · {{ p.scope }}</p><p class="license-source">{{ p.source }}</p><section v-for="file in p.files" :key="file.name"><h4>{{ file.name }}</h4><pre>{{ file.text }}</pre></section></details>
-          <p v-if="!components.length">未找到匹配组件。</p>
+          <p v-if="!components.length">No matching components found.</p>
         </template>
         <pre v-else-if="tab === 'sources'">{{ data.sources }}</pre>
         <pre v-else>{{ data.brand }}</pre>
       </template>
-      <p v-else>正在加载许可材料…</p>
+      <p v-else>Loading license materials…</p>
     </div>
   </NModal>
 </template>

@@ -254,12 +254,12 @@ class Planner:
                     if renamed:
                         item["warningCode"] = "TARGET_CONFLICT"
                 else:
-                    item = self._item(plan_id, len(items), source, None, "skip", False, "未匹配分类，留在原处")
+                    item = self._item(plan_id, len(items), source, None, "skip", False, "Unmatched category, left in place")
             elif profile["presetType"] == "by-date":
                 date_resource = resource_for(source, root)
                 if apply(image_filter, date_resource) and apply(modified_filter, date_resource):
                     modified = date_resource.vars["lastmodified"]
-                    destination = target / ("%d年" % modified.year) / ("%02d月" % modified.month) / source.name
+                    destination = target / ("%d" % modified.year) / ("%02d" % modified.month) / source.name
                     destination, renamed = unique_destination(destination, occupied)
                     item = self._item(plan_id, len(items), source, destination, "move", True)
                     if renamed:
@@ -269,7 +269,7 @@ class Planner:
                 if apply(installer_filter, old_resource) and apply(old_filter, old_resource):
                     destination = self._quarantine_destination(plan_id, root, source)
                     item = self._item(plan_id, len(items), source, destination, "quarantine", True)
-                    item["reason"] = "旧安装包，%d 天未修改" % age_days
+                    item["reason"] = "Old installers, %d days unmodified" % age_days
             if item is not None:
                 item["metadata"]["organizeCore"] = CORE_VERSION
                 items.append(item)
@@ -358,7 +358,7 @@ class Planner:
                         "organizeCore": CORE_VERSION,
                     }
                 )
-                item["reason"] = "重复文件"
+                item["reason"] = "Duplicate files"
                 items.append(item)
         return items
 

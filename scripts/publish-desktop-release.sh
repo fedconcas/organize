@@ -25,12 +25,11 @@ else
     --title "Organize ${version} · build ${GITHUB_RUN_NUMBER}" \
     --notes "macOS 14+ / Apple Silicon (M-series), early evaluation build.
 
-下载 Organize-macos-arm64.dmg，打开后将 Organize 拖入 Applications。
-此构建为临时签名，尚未经过 Apple 公证；macOS 可能阻止打开。
+Download Organize-macos-arm64.dmg, open it and drag Organize into Applications.
 This build is ad-hoc signed and NOT Apple notarized; macOS may block it.
 Do not disable system security protections. Use a notarized release when required.
 
-仅提供 macOS Apple Silicon 桌面安装包，不包含 Intel、Windows 或 Linux 桌面版。
+Only the macOS Apple Silicon desktop installer is provided; there are no Intel, Windows or Linux desktop builds.
 SHA256SUMS.txt provides the installer checksum; build-info.json records the exact source commit.
 Source: ${GITHUB_SHA}"
 fi

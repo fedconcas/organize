@@ -16,7 +16,7 @@ function commit() {
 function onInput(event: Event) {
   const value = (event.target as HTMLInputElement).value
   draft.value = value
-  if (/[\s,，、;；]/.test(value)) commit()
+  if (/[\s,, ;; ]/.test(value)) commit()
 }
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter') { event.preventDefault(); commit() }
@@ -27,9 +27,9 @@ function remove(extension: string) {
   input.value?.focus()
 }
 function chipTitle(extension: string) {
-  if (!validExtension(extension)) return '扩展名只能包含字母、数字、-、_ 和 +'
+  if (!validExtension(extension)) return 'Extensions may only contain letters, digits, -, _ and +'
   const owners = props.conflicts.get(extension)
-  return owners?.length ? `也属于“${owners.join('”“')}”` : undefined
+  return owners?.length ? `also belongs to “${owners.join('”“')}”` : undefined
 }
 </script>
 
@@ -37,8 +37,8 @@ function chipTitle(extension: string) {
   <div class="ext-input" @click="input?.focus()">
     <span v-for="extension in model" :key="extension" class="ext-chip" :class="{ conflict: chipTitle(extension) }" :title="chipTitle(extension)">
       <i>.</i>{{ extension }}
-      <button type="button" :aria-label="`移除扩展名 ${extension}`" @click.stop="remove(extension)"><AppIcon name="close" :size="11" /></button>
+      <button type="button" :aria-label="`Remove extension ${extension}`" @click.stop="remove(extension)"><AppIcon name="close" :size="11" /></button>
     </span>
-    <input ref="input" :value="draft" :aria-label="label" :placeholder="model.length ? '继续添加' : '输入扩展名，例如 pdf'" @input="onInput" @keydown="onKeydown" @blur="commit" />
+    <input ref="input" :value="draft" :aria-label="label" :placeholder="model.length ? 'Add more' : 'Enter extensions, e.g.  pdf'" @input="onInput" @keydown="onKeydown" @blur="commit" />
   </div>
 </template>

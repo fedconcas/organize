@@ -1,13 +1,13 @@
 # Organize
 
-独立维护的桌面衍生项目，基于 Thomas Feldmann 的 [organize](https://github.com/tfeldmann/organize)。
-不是上游官方桌面发行版，也不代表任何第三方产品或平台的官方发行或背书。
-本项目及新增原创图标按 MIT 提供，第三方组件遵循各自许可证。
+An independently maintained desktop derivative project, based on Thomas Feldmann's [organize](https://github.com/tfeldmann/organize).
+It is not the official upstream desktop distribution, and does not represent the official release or endorsement of any third-party product or platform.
+This project and its added original icons are provided under MIT; third-party components follow their own licenses.
 
-发行包许可、MPL 对应源码获取方式与品牌使用要求见 [发行说明](legal/README.md)
-和 [独立品牌说明](legal/BRAND.md)。当前桌面发行继续使用项目原版图标；新版图标仅作为备份保留。
+For the distribution licenses, how to get the MPL corresponding source, and branding requirements, see the [release notes](legal/README.md)
+and the [independent branding notice](legal/BRAND.md). The current desktop release keeps using the project's original icon; the new icon is kept only as a backup.
 
-以下保留上游文档和署名，用于说明引擎来源；其中上游 CI、PyPI、文档链接不是本桌面应用的发布状态。
+The upstream documentation and attribution are kept below to explain where the engine comes from; the upstream CI, PyPI and documentation links there are not the release status of this desktop app.
 
 <p align="center">
   <!--<img width="623" height="168" src="https://github.com/tfeldmann/organize/raw/gh-pages/img/organize.svg?sanitize=true" alt="organize logo">-->

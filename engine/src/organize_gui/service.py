@@ -78,7 +78,7 @@ class EngineService:
     ) -> Dict[str, Any]:
         validation = self.validate(profile)
         if not validation["valid"]:
-            raise EngineError("PROFILE_INVALID", "请检查来源、目标和分类规则。", {"issues": validation["issues"]})
+            raise EngineError("PROFILE_INVALID", "Please check the sources, target and category rules.", {"issues": validation["issues"]})
         return self.planner.create(profile, events, cancelled)
 
     def saved_profiles(self) -> List[Dict[str, Any]]:
@@ -91,7 +91,7 @@ class EngineService:
         if not isinstance(profile.get("name"), str) or not profile["name"].strip() or len(profile["name"]) > 80:
             issues.append({"code": "INVALID_PROFILE_NAME"})
         if issues:
-            raise EngineError("PROFILE_INVALID", "请检查方案名称、目录和分类规则。", {"issues": issues})
+            raise EngineError("PROFILE_INVALID", "Please check the plan name, folders and category rules.", {"issues": issues})
         self.store.save_named_profile(profile, datetime.now(timezone.utc).isoformat())
         return profile
 
@@ -135,28 +135,28 @@ class EngineService:
             "historyLimit": self.store.get_setting("historyLimit", 200),
             "redactPaths": self.store.get_setting("redactPaths", True),
             "notifyOnComplete": self.store.get_setting("notifyOnComplete", True),
-            "defaultTargetFolder": self.store.get_setting("defaultTargetFolder", "~/Documents/整理"),
+            "defaultTargetFolder": self.store.get_setting("defaultTargetFolder", "~/Documents/Organize"),
             "quarantineFolder": self.store.get_setting("quarantineFolder", str(self.data_dir / "quarantine")),
         }
 
     def update_settings(self, values: Dict[str, Any]) -> Dict[str, Any]:
         for key, value in values.items():
             if key == "theme" and (not isinstance(value, str) or value not in {"system", "light", "dark"}):
-                raise EngineError("INVALID_SETTING", "请选择有效的主题。")
+                raise EngineError("INVALID_SETTING", "Please choose a valid theme.")
             if key in {"retentionDays", "historyLimit"}:
                 low, high = (7, 3650) if key == "retentionDays" else (10, 2000)
                 if type(value) is not int or not low <= value <= high:
-                    raise EngineError("INVALID_SETTING", "%s 必须在 %s–%s 之间。" % (key, low, high))
+                    raise EngineError("INVALID_SETTING", "%s Must be between %s–%s ." % (key, low, high))
             if key in {"redactPaths", "notifyOnComplete", "onboardingCompleted"} and type(value) is not bool:
-                raise EngineError("INVALID_SETTING", "开关必须为布尔值。")
+                raise EngineError("INVALID_SETTING", "The switch must be a boolean.")
             if key in {"defaultTargetFolder", "quarantineFolder"}:
                 if not isinstance(value, str) or not value.strip():
-                    raise EngineError("INVALID_SETTING", "请选择有效的文件夹。")
+                    raise EngineError("INVALID_SETTING", "Please choose a valid folder.")
                 path = absolute_path(value)
                 if not path.is_dir() or not os.access(str(path), os.W_OK | os.X_OK):
-                    raise EngineError("INVALID_SETTING", "文件夹不存在或无法写入。")
+                    raise EngineError("INVALID_SETTING", "Folder does not exist or cannot be written to.")
             if key not in {*self.settings(), "onboardingCompleted"}:
-                raise EngineError("INVALID_SETTING", "未知设置：%s" % key)
+                raise EngineError("INVALID_SETTING", "Unknown setting: %s" % key)
         for key, value in values.items():
             self.store.set_setting(key, value)
         self.executor.retention_days = self.settings()["retentionDays"]
@@ -180,7 +180,7 @@ class EngineService:
         redact = self.store.get_setting("redactPaths", True)
         def redacted(text: str) -> str:
             # Redact full paths, including paths outside the user's home, in exported diagnostics only.
-            return re.sub(r'(?:[A-Za-z]:[\\/]|/)[^\n\"\'<>]*', '[路径已隐藏]', text)
+            return re.sub(r'(?:[A-Za-z]:[\\/]|/)[^\n\"\'<>]*', '[Path hidden]', text)
         def redact_values(value: Any) -> Any:
             if isinstance(value, dict):
                 return {key: redact_values(item) for key, item in value.items()}

@@ -50,7 +50,7 @@ onMounted(() => store.initialize())
             <StartupLoading v-if="store.startupState !== 'ready'" :state="store.startupState" :error="store.startupError" @retry="store.initialize()" />
             <template v-else>
               <FlowStepper v-if="flowStep" :step="flowStep" />
-              <div v-if="store.error" class="global-error"><b>出现了问题</b><span>{{ store.error }}</span><button @click="store.error = undefined">×</button></div>
+              <div v-if="store.error" class="global-error"><b>Something went wrong</b><span>{{ store.error }}</span><button @click="store.error = undefined">×</button></div>
               <div v-if="store.notice" class="global-notice" role="status"><span>{{ store.notice }}</span><button @click="store.notice = ''">×</button></div>
               <Transition name="view" mode="out-in">
                 <component :is="current" :key="store.view" />
@@ -59,7 +59,7 @@ onMounted(() => store.initialize())
           </main>
         </div>
         <footer class="app-statusbar" role="status" aria-live="polite">
-          <span><i :class="{ ready: store.engineReady }" aria-hidden="true" />{{ store.engineReady ? '整理引擎已就绪' : store.startupState === 'error' ? '整理引擎未就绪' : '正在启动整理引擎' }}</span>
+          <span><i :class="{ ready: store.engineReady }" aria-hidden="true" />{{ store.engineReady ? 'Organizing engine ready' : store.startupState === 'error' ? 'Organizing engine not ready' : 'Starting the organizing engine' }}</span>
         </footer>
       </div>
     </NMessageProvider>

@@ -32,11 +32,11 @@ impl EngineBridge {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|error| format!("无法启动整理引擎：{error}"))?;
+            .map_err(|error| format!("Cannot start the organizing engine: {error}"))?;
 
-        let input = child.stdin.take().ok_or("无法连接整理引擎输入")?;
-        let output = child.stdout.take().ok_or("无法连接整理引擎输出")?;
-        let stderr = child.stderr.take().ok_or("无法连接整理引擎日志")?;
+        let input = child.stdin.take().ok_or("Cannot connect to organizing engine input")?;
+        let output = child.stdout.take().ok_or("Cannot connect to organizing engine output")?;
+        let stderr = child.stderr.take().ok_or("Cannot connect to organizing engine log")?;
         let pending: Pending = Arc::new(Mutex::new(HashMap::new()));
         let reader_pending = Arc::clone(&pending);
 
@@ -69,7 +69,7 @@ impl EngineBridge {
                     }
                 }
                 if let Ok(mut map) = reader_pending.lock() {
-                    let error = json!({"code":"ENGINE_CRASHED","message":"整理引擎已停止"});
+                    let error = json!({"code":"ENGINE_CRASHED","message":"Organizing engine stopped"});
                     for (_, sender) in map.drain() {
                         let _ = sender.send(Err(error.clone()));
                     }
@@ -152,7 +152,7 @@ fn engine_command() -> Result<Command, String> {
         return Ok(command);
     }
 
-    let executable = env::current_exe().map_err(|error| format!("无法定位应用程序：{error}"))?;
+    let executable = env::current_exe().map_err(|error| format!("Cannot locate the application: {error}"))?;
     let bundled_name = if cfg!(windows) {
         "organize-engine.exe"
     } else {
@@ -170,14 +170,14 @@ fn engine_command() -> Result<Command, String> {
     }
 
     if !cfg!(debug_assertions) {
-        return Err("安装包中缺少整理引擎，请重新安装应用".into());
+        return Err("The organizing engine is missing from the package. Please reinstall the app".into());
     }
 
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let source = manifest.join("../../../engine/src");
     let source = source
         .canonicalize()
-        .map_err(|error| format!("找不到 Python 引擎：{error}"))?;
+        .map_err(|error| format!("Cannot find the Python engine: {error}"))?;
     let python = env::var("ORGANIZE_GUI_PYTHON").unwrap_or_else(|_| "python3".into());
     let mut command = Command::new(python);
     command.arg("-m").arg("organize_gui.rpc_server");
@@ -222,11 +222,11 @@ fn request_with_parts(
     let (sender, receiver) = mpsc::channel();
     pending
         .lock()
-        .map_err(|_| json!({"code":"ENGINE_LOCKED","message":"整理引擎响应队列不可用"}))?
+        .map_err(|_| json!({"code":"ENGINE_LOCKED","message":"Organizing engine response queue unavailable"}))?
         .insert(id.clone(), sender);
     let result = input
         .lock()
-        .map_err(|_| json!({"code":"ENGINE_LOCKED","message":"整理引擎输入不可用"}))
+        .map_err(|_| json!({"code":"ENGINE_LOCKED","message":"Organizing engine input unavailable"}))
         .and_then(|mut writer| {
             writeln!(writer, "{}", message)
                 .and_then(|_| writer.flush())
@@ -244,7 +244,7 @@ fn request_with_parts(
             if let Ok(mut map) = pending.lock() {
                 map.remove(&id);
             }
-            Err(json!({"code":"ENGINE_TIMEOUT","message":"整理引擎响应超时"}))
+            Err(json!({"code":"ENGINE_TIMEOUT","message":"Organizing engine response timed out"}))
         })
 }
 
@@ -264,7 +264,7 @@ fn reveal_path(path: String) -> Result<(), String> {
         .arg(path)
         .spawn()
         .map(|_| ())
-        .map_err(|error| format!("无法打开位置：{error}"))
+        .map_err(|error| format!("Cannot open location: {error}"))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -291,7 +291,7 @@ fn legal_resource_path(directory: &std::path::Path, resource: &str) -> Result<Pa
     match resource {
         "licenses" => Ok(directory.join("legal")),
         "mpl-sources" => Ok(directory.join("legal/MPL-SOURCES.zip")),
-        _ => Err("未知的许可资源".into()),
+        _ => Err("Unknown license resource".into()),
     }
 }
 
@@ -304,7 +304,7 @@ fn open_legal_resource(app: AppHandle, resource: String) -> Result<(), String> {
     let path = legal_resource_path(&directory, &resource)?;
     if !path.exists() {
         return Err(
-            "安装包中缺少许可资源，请重新安装；开发模式下请查看仓库 legal/generated".into(),
+            "License resources are missing from the package. Please reinstall; in development mode check the repository legal/generated".into(),
         );
     }
     reveal_path(path.to_string_lossy().into_owned())

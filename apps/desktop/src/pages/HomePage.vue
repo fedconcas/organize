@@ -8,22 +8,22 @@ import { formatDate } from '../utils'
 const store = useAppStore()
 const today = new Date()
 const presentation: Record<PresetType, { icon: string; title: string; safety: string; tone: string; flow: string[] }> = {
-  'by-type': { icon: 'folder', title: '杂乱文件，有序归类', safety: '只移动，不删除', tone: 'mint', flow: ['自选文件夹', '自定义分类'] },
-  'by-date': { icon: 'image', title: '让每张照片找到位置', safety: '按修改日期归档', tone: 'blue', flow: ['照片与截图', `${today.getFullYear()}年 / ${today.getMonth() + 1}月`] },
-  'old-installers': { icon: 'archive', title: '给旧安装包腾个地方', safety: '移入隔离区，可恢复', tone: 'peach', flow: ['超过 90 天', '安全隔离'] },
-  duplicates: { icon: 'duplicate', title: '相同的文件，只留一份', safety: '由你选择保留项', tone: 'pink', flow: ['比对文件内容', '逐组选择'] },
-  'similar-photos': { icon: 'image', title: '相似的照片，只留一张', safety: '默认不标记删除', tone: 'lilac', flow: ['精确重复和相似', '逐组确认'] },
+  'by-type': { icon: 'folder', title: 'Messy files, neatly sorted', safety: 'Moves only, never deletes', tone: 'mint', flow: ['Choose folders', 'Custom categories'] },
+  'by-date': { icon: 'image', title: 'Give every photo its place', safety: 'Archive by modified date', tone: 'blue', flow: ['Photos and screenshots', `${today.getFullYear()} / ${today.getMonth() + 1}`] },
+  'old-installers': { icon: 'archive', title: 'Make room from old installers', safety: 'Move to quarantine; restorable', tone: 'peach', flow: ['Over 90 days', 'Safe quarantine'] },
+  duplicates: { icon: 'duplicate', title: 'Identical files, keep only one', safety: 'You choose what to keep', tone: 'pink', flow: ['Comparing file contents', 'Choose group by group'] },
+  'similar-photos': { icon: 'image', title: 'Similar photos, keep only one', safety: 'Not marked for deletion by default', tone: 'lilac', flow: ['Exact duplicates and similar', 'Confirm group by group'] },
 }
 </script>
 
 <template>
   <div class="page scroll-page home-page">
-    <header class="home-heading"><div><span class="eyebrow">YOUR SPACE, ORGANIZED</span><h1>智能整理</h1></div><span class="local-pill"><AppIcon name="lock" :size="14" />文件处理全程在本机</span></header>
+    <header class="home-heading"><div><span class="eyebrow">YOUR SPACE, ORGANIZED</span><h1>Smart Organize</h1></div><span class="local-pill"><AppIcon name="lock" :size="14" />All file processing happens on this Mac</span></header>
     <section class="home-hero">
-      <div class="hero-copy"><span class="hero-kicker"><AppIcon name="sparkle" :size="16" />少一点杂乱，多一点轻松</span><h2>让文件各归其位。</h2><p>从一个文件夹开始。先看清每个文件的去向，<br>再把整理这件事，放心交给 Organize。</p><button class="button primary hero-action" :disabled="!store.engineReady" @click="store.choosePreset('by-type')">开始整理<AppIcon name="arrow" :size="18" /></button><small>选择文件夹后扫描 · 确认前不会改动文件</small></div>
+      <div class="hero-copy"><span class="hero-kicker"><AppIcon name="sparkle" :size="16" />Less clutter, more ease</span><h2>Put files where they belong.</h2><p>Start with one folder. See where every file goes first, <br>Then leave the organizing to Organize with peace of mind.</p><button class="button primary hero-action" :disabled="!store.engineReady" @click="store.choosePreset('by-type')">Start organizing<AppIcon name="arrow" :size="18" /></button><small>Choose folders, then scan · No files change until you confirm</small></div>
       <CareVisual />
     </section>
-    <div class="home-section-heading"><h2>为你的文件，选择一种整理方式</h2><span>5 个工具，都以安全为先</span></div>
+    <div class="home-section-heading"><h2>Choose a way to organize your files</h2><span>5 tools, all safety-first</span></div>
     <div class="home-grid">
       <div>
         <div class="preset-grid">
@@ -47,28 +47,28 @@ const presentation: Record<PresetType, { icon: string; title: string; safety: st
             <div class="preset-footer"><span class="safety-chip"><AppIcon name="check" :size="13" />{{ presentation[preset.id].safety }}</span><span class="preset-open"><AppIcon name="arrow" :size="18" /></span></div>
           </button>
         </div>
-        <h3 v-if="store.history.length" class="section-title">最近任务</h3>
+        <h3 v-if="store.history.length" class="section-title">Recent tasks</h3>
         <section v-if="store.history.length" class="panel recent-list">
           <button v-for="run in store.history.slice(0, 3)" :key="run.run_id" @click="store.go('history')">
             <span class="status-dot" :class="run.status" />
-            <span><b>{{ run.profile.name }}</b><small>{{ formatDate(run.started_at) }}，{{ run.success }} 个已完成</small></span>
-            <span class="op-badge" :class="run.status === 'completed' ? 'ok' : 'warn'">{{ run.status === 'completed' ? '完成' : '部分成功' }}</span>
+            <span><b>{{ run.profile.name }}</b><small>{{ formatDate(run.started_at) }}, {{ run.success }} completed</small></span>
+            <span class="op-badge" :class="run.status === 'completed' ? 'ok' : 'warn'">{{ run.status === 'completed' ? 'Done' : 'Partly succeeded' }}</span>
           </button>
         </section>
       </div>
       <aside class="home-aside">
         <section v-if="store.history[0]" class="panel last-run">
-          <div class="panel-title">↶ 上次整理 <small>{{ formatDate(store.history[0].started_at) }}</small></div>
-          <div class="panel-body"><p>{{ store.history[0].profile.name }}</p><strong>{{ store.history[0].success }}</strong> 个文件已处理</div>
-          <button class="button undo" :disabled="!store.history[0].undoable_count" @click="store.prepareUndo(store.history[0].run_id)">↶ 撤销上次整理</button>
+          <div class="panel-title">↶ Last run <small>{{ formatDate(store.history[0].started_at) }}</small></div>
+          <div class="panel-body"><p>{{ store.history[0].profile.name }}</p><strong>{{ store.history[0].success }}</strong> files processed</div>
+          <button class="button undo" :disabled="!store.history[0].undoable_count" @click="store.prepareUndo(store.history[0].run_id)">↶ Undo last run</button>
         </section>
         <section v-if="store.lastProfile" class="panel continue-card">
-          <div class="panel-title">继续上次方案</div>
-          <div class="panel-body"><p>{{ store.lastProfile.name }}</p><small>{{ store.lastProfile.sourceFolders.join('、') }} → {{ store.lastProfile.targetFolder }}</small></div>
-          <button class="button secondary" @click="store.useProfile(store.lastProfile)">用这个方案重新扫描</button>
+          <div class="panel-title">Continue last plan</div>
+          <div class="panel-body"><p>{{ store.lastProfile.name }}</p><small>{{ store.lastProfile.sourceFolders.join(', ') }} → {{ store.lastProfile.targetFolder }}</small></div>
+          <button class="button secondary" @click="store.useProfile(store.lastProfile)">Rescan with this plan</button>
         </section>
       </aside>
     </div>
-    <div class="home-trust"><span><AppIcon name="shield" :size="15" />不覆盖已有文件</span><span><AppIcon name="history" :size="15" />保留操作历史</span><span><AppIcon name="lock" :size="15" />无需上传文件</span></div>
+    <div class="home-trust"><span><AppIcon name="shield" :size="15" />Doesn’t overwrite existing files</span><span><AppIcon name="history" :size="15" />Keep action history</span><span><AppIcon name="lock" :size="15" />No need to upload files</span></div>
   </div>
 </template>

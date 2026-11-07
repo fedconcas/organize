@@ -19,20 +19,20 @@ async function restore(original = true) {
   if (await store.restoreQuarantine(ids, destination)) selected.value = new Set([...selected.value].filter(id => store.quarantine.some(item => item.quarantine_id === id)))
 }
 async function moveToTrash() {
-  if (!window.confirm(`把选中的 ${selected.value.size} 个文件移入系统回收站？`)) return
+  if (!window.confirm(`Move the selected ${selected.value.size} files to the system Trash?`)) return
   if (await store.trashQuarantine([...selected.value])) selected.value = new Set([...selected.value].filter(id => store.quarantine.some(item => item.quarantine_id === id)))
 }
 </script>
 
 <template>
   <div class="page scroll-page quarantine-page">
-    <PageHeader title="隔离区" description="这里的文件没有被删除。你可以放回原位置，或在确认不需要后移入系统回收站。" />
-    <section class="quarantine-summary"><div><strong>{{ store.quarantine.length }}</strong><span>个文件</span></div><div><strong>{{ formatBytes(store.quarantine.reduce((n, item) => n + item.size, 0)) }}</strong><span>占用空间</span></div><div><strong>{{ expired }}</strong><span>已超过提醒时间</span></div><code>{{ store.settings.quarantineFolder }}（已有文件可能在旧位置）</code></section>
-    <div v-if="!store.quarantine.length" class="empty-state"><span><AppIcon name="shield" :size="48" /></span><h2>隔离区是空的</h2><p>旧安装包、重复文件和相似照片会把文件放在这里，你随时可以恢复。</p></div>
+    <PageHeader title="Quarantine" description="Files here have not been deleted. You can put them back, or move them to the system Trash once you’re sure you don’t need them." />
+    <section class="quarantine-summary"><div><strong>{{ store.quarantine.length }}</strong><span>files</span></div><div><strong>{{ formatBytes(store.quarantine.reduce((n, item) => n + item.size, 0)) }}</strong><span>Space used</span></div><div><strong>{{ expired }}</strong><span>Reminder time has passed</span></div><code>{{ store.settings.quarantineFolder }}(existing files may be in the old location)</code></section>
+    <div v-if="!store.quarantine.length" class="empty-state"><span><AppIcon name="shield" :size="48" /></span><h2>Quarantine is empty</h2><p>Old installers, duplicate files and similar photos put files here, and you can restore them at any time.</p></div>
     <section v-else class="panel quarantine-table">
-      <div class="q-head"><span>选择</span><span>文件</span><span>原位置</span><span>为什么在这里</span><span>隔离时间</span><span>大小</span></div>
+      <div class="q-head"><span>Select</span><span>File</span><span>Original location</span><span>Why it’s here</span><span>Quarantined at</span><span>Size</span></div>
       <button v-for="item in store.quarantine" :key="item.quarantine_id" @click="toggle(item.quarantine_id)"><span class="check" :class="{ on: selected.has(item.quarantine_id) }">{{ selected.has(item.quarantine_id) ? '✓' : '' }}</span><span><b>{{ fileName(item.original_path) }}</b><small>{{ item.quarantine_path }}</small></span><code>{{ item.original_path }}</code><span>{{ item.reason }}</span><span>{{ formatDate(item.quarantined_at) }}</span><strong>{{ formatBytes(item.size) }}</strong></button>
     </section>
-    <footer v-if="selected.size" class="action-bar"><span>已选 {{ selected.size }} 个文件，{{ formatBytes(selectedSize) }}</span><button class="button danger" :disabled="store.busy" @click="moveToTrash">移入系统回收站</button><button class="button secondary" :disabled="store.busy" @click="restore(false)">恢复到其他位置</button><button class="button primary" :disabled="store.busy" @click="restore(true)">恢复到原位置</button></footer>
+    <footer v-if="selected.size" class="action-bar"><span>Selected {{ selected.size }} files, {{ formatBytes(selectedSize) }}</span><button class="button danger" :disabled="store.busy" @click="moveToTrash">Move to system Trash</button><button class="button secondary" :disabled="store.busy" @click="restore(false)">Restore to another location</button><button class="button primary" :disabled="store.busy" @click="restore(true)">Restore to original location</button></footer>
   </div>
 </template>

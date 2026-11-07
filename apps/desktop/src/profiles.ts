@@ -5,23 +5,23 @@ const rule = (id: string, name: string, extensions: string): TypeRule => ({
 })
 export function classificationTemplate(template = 'standard'): TypeRule[] {
   if (template === 'office') return [
-    rule('text', '文稿', 'doc docx txt md'), rule('pdf', 'PDF资料', 'pdf'),
-    rule('sheets', '表格', 'xls xlsx csv'), rule('slides', '演示文稿', 'ppt pptx'),
+    rule('text', 'Text documents', 'doc docx txt md'), rule('pdf', 'PDFMaterials', 'pdf'),
+    rule('sheets', 'Spreadsheets', 'xls xlsx csv'), rule('slides', 'Presentations', 'ppt pptx'),
   ]
   if (template === 'media') return [
-    rule('photos', '照片', 'jpg jpeg heic tif tiff'), rule('graphics', '图像素材', 'png gif webp svg psd ai'),
-    rule('videos', '视频', 'mp4 mov mkv avi webm m4v'), rule('audio', '音频', 'mp3 m4a wav flac aac ogg'),
+    rule('photos', 'Photos', 'jpg jpeg heic tif tiff'), rule('graphics', 'Graphics', 'png gif webp svg psd ai'),
+    rule('videos', 'Videos', 'mp4 mov mkv avi webm m4v'), rule('audio', 'Audio', 'mp3 m4a wav flac aac ogg'),
   ]
-  return [rule('documents', '文档', 'pdf doc docx xls xlsx ppt pptx txt md csv'),
-    rule('images', '图片', 'jpg jpeg png gif webp heic tif tiff'),
-    rule('videos', '视频', 'mp4 mov mkv avi webm m4v'), rule('audio', '音频', 'mp3 m4a wav flac aac ogg'),
-    rule('archives', '压缩包', 'zip 7z rar tar gz bz2 xz'), rule('installers', '安装包', 'exe msi msix dmg pkg')]
+  return [rule('documents', 'Documents', 'pdf doc docx xls xlsx ppt pptx txt md csv'),
+    rule('images', 'Images', 'jpg jpeg png gif webp heic tif tiff'),
+    rule('videos', 'Videos', 'mp4 mov mkv avi webm m4v'), rule('audio', 'Audio', 'mp3 m4a wav flac aac ogg'),
+    rule('archives', 'Archives', 'zip 7z rar tar gz bz2 xz'), rule('installers', 'Installers', 'exe msi msix dmg pkg')]
 }
 
 export const CLASSIFICATION_TEMPLATES = [
-  { id: 'standard', name: '通用分类', description: '文档、图片、视频、音频、压缩包、安装包' },
-  { id: 'office', name: '办公资料', description: '文稿、PDF、表格、演示文稿分开存放' },
-  { id: 'media', name: '媒体素材', description: '照片、图像素材、视频、音频' },
+  { id: 'standard', name: 'General', description: 'Documents, images, videos, audio, archives, installers' },
+  { id: 'office', name: 'Office documents', description: 'Text documents, PDFs, spreadsheets and presentations kept apart' },
+  { id: 'media', name: 'Media', description: 'Photos, graphics, videos, audio' },
 ] as const
 
 export function ensureClassification(profile: Profile) {
@@ -30,7 +30,7 @@ export function ensureClassification(profile: Profile) {
       enabled: !profile.parameters.categories || profile.parameters.categories.includes(rule.id),
     }))
     profile.parameters.unmatchedAction = !profile.parameters.categories || profile.parameters.categories.includes('other') ? 'other' : 'keep'
-    profile.parameters.otherFolder = '其他文件'
+    profile.parameters.otherFolder = 'Other files'
   }
 }
 
@@ -40,10 +40,10 @@ export function parseExtensions(value: string): string[] {
 
 export function newRuleName(rules: TypeRule[]): string {
   const names = new Set(rules.map((item) => item.name))
-  if (!names.has('新分类')) return '新分类'
+  if (!names.has('New category')) return 'New category'
   let index = 2
-  while (names.has(`新分类 ${index}`)) index++
-  return `新分类 ${index}`
+  while (names.has(`New category ${index}`)) index++
+  return `New category ${index}`
 }
 
 // Mirrors engine/src/organize_gui/profiles.py so problems show while editing, before profile.validate.
@@ -73,7 +73,7 @@ export function extensionOwners(rules: TypeRule[]): Map<string, string[]> {
   const owners = new Map<string, string[]>()
   for (const item of rules) {
     if (!item.enabled) continue
-    for (const extension of new Set(item.extensions)) owners.set(extension, [...(owners.get(extension) ?? []), item.name || '未命名分类'])
+    for (const extension of new Set(item.extensions)) owners.set(extension, [...(owners.get(extension) ?? []), item.name || 'Unnamed category'])
   }
   return owners
 }
@@ -84,18 +84,18 @@ export function ruleIssues(profile: Profile): RuleIssue[] {
   const claimed = new Map<string, string>()
   for (const item of rules) {
     if (!item.enabled) continue
-    if (!item.name.trim()) issues.push({ ruleId: item.id, field: 'name', message: '分类名称不能为空' })
-    if (!validFolderName(item.folderName)) issues.push({ ruleId: item.id, field: 'folder', message: '子文件夹名称不能为空，也不能包含 / \\ : * ? " < > |' })
-    if (!item.extensions.length) issues.push({ ruleId: item.id, field: 'extensions', message: '至少添加一个扩展名' })
+    if (!item.name.trim()) issues.push({ ruleId: item.id, field: 'name', message: 'Category name cannot be empty' })
+    if (!validFolderName(item.folderName)) issues.push({ ruleId: item.id, field: 'folder', message: 'Subfolder name cannot be empty or contain / \\ : * ? " < > |' })
+    if (!item.extensions.length) issues.push({ ruleId: item.id, field: 'extensions', message: 'Add at least one extension' })
     for (const extension of item.extensions) {
-      if (!validExtension(extension)) issues.push({ ruleId: item.id, field: 'extensions', message: `“${extension}”不是有效的扩展名` })
-      else if (claimed.has(extension)) issues.push({ ruleId: item.id, field: 'extensions', message: `“${extension}”已属于“${claimed.get(extension)}”` })
-      else claimed.set(extension, item.name || '未命名分类')
+      if (!validExtension(extension)) issues.push({ ruleId: item.id, field: 'extensions', message: `“${extension}” is not a valid extension` })
+      else if (claimed.has(extension)) issues.push({ ruleId: item.id, field: 'extensions', message: `“${extension}” already belongs to “${claimed.get(extension)}”` })
+      else claimed.set(extension, item.name || 'Unnamed category')
     }
   }
   const unmatched = profile.parameters.unmatchedAction ?? 'other'
-  if (unmatched === 'other' && !validFolderName(profile.parameters.otherFolder)) issues.push({ field: 'other', message: '其他文件夹名称不合法' })
-  if (!rules.some((item) => item.enabled) && unmatched !== 'other') issues.push({ field: 'rules', message: '至少启用一个分类，或把未匹配的文件归入其他文件夹' })
+  if (unmatched === 'other' && !validFolderName(profile.parameters.otherFolder)) issues.push({ field: 'other', message: 'The “Other” folder name is invalid' })
+  if (!rules.some((item) => item.enabled) && unmatched !== 'other') issues.push({ field: 'rules', message: 'Enable at least one category, or put unmatched files into the Other folder' })
   return issues
 }
 

@@ -3,32 +3,32 @@ from typing import Any, Dict, List
 
 CATEGORIES = {
     "documents": {
-        "label": "文档",
+        "label": "Documents",
         "extensions": [
             "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "csv"
         ],
     },
     "images": {
-        "label": "图片",
+        "label": "Images",
         "extensions": ["jpg", "jpeg", "png", "gif", "webp", "heic", "tif", "tiff"],
     },
     "videos": {
-        "label": "视频",
+        "label": "Videos",
         "extensions": ["mp4", "mov", "mkv", "avi", "webm", "m4v"],
     },
     "audio": {
-        "label": "音频",
+        "label": "Audio",
         "extensions": ["mp3", "m4a", "wav", "flac", "aac", "ogg"],
     },
     "archives": {
-        "label": "压缩包",
+        "label": "Archives",
         "extensions": ["zip", "7z", "rar", "tar", "gz", "bz2", "xz"],
     },
     "installers": {
-        "label": "安装包",
+        "label": "Installers",
         "extensions": ["exe", "msi", "msix", "dmg", "pkg"],
     },
-    "other": {"label": "其他文件", "extensions": []},
+    "other": {"label": "Other files", "extensions": []},
 }
 
 IMAGE_EXTENSIONS = set(CATEGORIES["images"]["extensions"])
@@ -39,32 +39,32 @@ def all_presets() -> List[Dict[str, Any]]:
     return [
         {
             "id": "by-type",
-            "name": "文件按类型整理",
-            "description": "文档、图片、视频等各归一处。",
+            "name": "Organize files by type",
+            "description": "Documents, images, videos and more each go to one place.",
             "operation": "move",
         },
         {
             "id": "by-date",
-            "name": "图片按日期归档",
-            "description": "按年和月整理照片与截图。",
+            "name": "Archive images by date",
+            "description": "Organizes photos and screenshots by year and month.",
             "operation": "move",
         },
         {
             "id": "old-installers",
-            "name": "旧安装包清理",
-            "description": "腾出被旧安装包占用的空间。",
+            "name": "Clean up old installers",
+            "description": "Free up space taken by old installers.",
             "operation": "quarantine",
         },
         {
             "id": "duplicates",
-            "name": "重复文件查找",
-            "description": "内容逐字节相同才算重复。",
+            "name": "Duplicate file finder",
+            "description": "Only byte-for-byte identical content counts as a duplicate.",
             "operation": "quarantine",
         },
         {
             "id": "similar-photos",
-            "name": "相似照片",
-            "description": "找出完全相同和看起来相似的照片，包括旋转或翻转的副本。",
+            "name": "Similar photos",
+            "description": "Finds identical and similar-looking photos, including rotated or flipped copies.",
             "operation": "quarantine",
         },
     ]

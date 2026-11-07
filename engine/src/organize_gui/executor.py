@@ -100,7 +100,7 @@ class Executor:
                             "operationId": operation_id,
                             "originalPath": item["source_path"],
                             "quarantinePath": item["target_path"],
-                            "reason": item.get("reason") or "按方案进入隔离区",
+                            "reason": item.get("reason") or "Moved to quarantine per the plan",
                             "size": item["size"],
                             "fingerprint": after,
                             "quarantinedAt": stamp.isoformat(),
@@ -297,10 +297,10 @@ class Executor:
 
     @staticmethod
     def _restored_name(path: Path) -> Path:
-        base = path.with_name("%s（已恢复）%s" % (path.stem, path.suffix))
+        base = path.with_name("%s(restored)%s" % (path.stem, path.suffix))
         candidate = base
         counter = 2
         while candidate.exists():
-            candidate = path.with_name("%s（已恢复 %d）%s" % (path.stem, counter, path.suffix))
+            candidate = path.with_name("%s(restored %d)%s" % (path.stem, counter, path.suffix))
             counter += 1
         return candidate

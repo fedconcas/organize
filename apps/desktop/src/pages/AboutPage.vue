@@ -21,16 +21,16 @@ async function exportDiagnostics() {
   const destination = await pickDiagnosticPath()
   if (!destination) return
   const result = await api.request<{ path: string }>('diagnostics.export', { destination })
-  exportStatus.value = `已保存到 ${result.path}`
+  exportStatus.value = `Saved to ${result.path}`
 }
 </script>
 
 <template>
   <div class="page scroll-page narrow-page">
-    <PageHeader title="关于与诊断" description="版本、隐私和本地诊断工具。" />
-    <section class="about-hero panel"><span class="about-app-icon"><img :src="appIcon" alt="" /></span><div><h2>Organize</h2><p>安全、可预览、可撤销的文件整理助手</p><small>独立衍生项目 · 基于 Thomas Feldmann 的 organize</small></div><dl><dt>应用版本</dt><dd>0.1.0</dd><dt>整理引擎</dt><dd>{{ versions.engine }}</dd><dt>organize</dt><dd>{{ versions.organize }}</dd></dl></section>
-    <section class="settings-group"><h2>诊断</h2><div><span><b>应用数据文件夹</b><small>{{ dataDir || '正在读取…' }}</small></span><button class="button secondary" :disabled="!dataDir" @click="revealLocalPath(dataDir)">打开</button></div><div><span><b>导出诊断包</b><small>{{ exportStatus || '只保存在你的电脑上，不会自动上传' }}</small></span><button class="button primary" @click="exportDiagnostics">导出</button></div></section>
-    <section class="settings-group"><h2>说明</h2><div><span><b>隐私说明</b><small>应用不上传任何文件或文件名</small></span></div><button class="link-row" @click="licenseOpen = true"><span><b>开源许可证与源码</b><small>MIT 署名、第三方许可全文、MPL 对应源码与独立品牌说明</small></span><i>›</i></button><div><span><b>独立项目</b><small>非上游官方桌面版；与 Microsoft、Apple、MacPaw 无隶属或背书关系。</small></span></div></section>
+    <PageHeader title="About & diagnostics" description="Version, privacy and local diagnostic tools." />
+    <section class="about-hero panel"><span class="about-app-icon"><img :src="appIcon" alt="" /></span><div><h2>Organize</h2><p>A safe, previewable, undoable file organizing assistant</p><small>Independent derivative project · based on Thomas Feldmann’s organize</small></div><dl><dt>App version</dt><dd>0.1.0</dd><dt>Organizing engine</dt><dd>{{ versions.engine }}</dd><dt>organize</dt><dd>{{ versions.organize }}</dd></dl></section>
+    <section class="settings-group"><h2>Diagnostics</h2><div><span><b>App data folder</b><small>{{ dataDir || 'Reading…' }}</small></span><button class="button secondary" :disabled="!dataDir" @click="revealLocalPath(dataDir)">Open</button></div><div><span><b>Export diagnostics bundle</b><small>{{ exportStatus || 'Stored only on your computer, never uploaded automatically' }}</small></span><button class="button primary" @click="exportDiagnostics">Export</button></div></section>
+    <section class="settings-group"><h2>Notes</h2><div><span><b>Privacy notes</b><small>The app uploads no files or file names</small></span></div><button class="link-row" @click="licenseOpen = true"><span><b>Open-source licenses and source code</b><small>MIT Attribution, full third-party licenses, MPL corresponding source and independent branding notes</small></span><i>›</i></button><div><span><b>Independent project</b><small>Not the official upstream desktop version; not affiliated with or endorsed by Microsoft, Apple or MacPaw.</small></span></div></section>
     <LicenseDialog v-model:show="licenseOpen" />
   </div>
 </template>

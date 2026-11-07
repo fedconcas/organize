@@ -274,23 +274,13 @@ def main():
             full_mpl = next(f['text'] for p in components if p['name'] == 'cssparser'
                             for f in p['files'] if 'Mozilla Public License Version 2.0' in f['text'])
             z.writestr(zipfile.ZipInfo('MPL-2.0.txt'), full_mpl)
-        source_text = '# MPL-2.0 对应源码 / Corresponding Source\n\n'
-        source_text += '本发行包以 MPL-2.0 提供以下原始、未修改的对应版本源码。\n'
-        source_text += '源码随应用免费附带，无需联网、付费或登录。\n\n'
-        source_text += '获取：关于与诊断 → 开源许可证与源码 → 打开 MPL 源码归档；\n'
-        source_text += '或 macOS 显示包内容 → Contents/Resources/legal/MPL-SOURCES.zip。\n\n'
-        source_text += '先解压 ZIP；每个 .crate 是标准 tar.gz，使用 tar -xzf <name-version.crate> 解压。\n'
-        source_text += '所有原始源码、Cargo.toml 与原许可/版权头均保留；MPL-2.0.txt 提供许可全文。\n'
-        source_text += 'option-ext 属于桌面运行依赖。symphonia 系列随 czkawka_core 进入相似照片依赖图，\n'
-        source_text += '本功能不调用音频工具，仍按 MPL-2.0 附带未修改源码。其余组件主要用于构建或宏展开。\n'
-        source_text += '独立的 MIT 代码不因该归档而整体变为 MPL。修改这些 MPL 文件后再发行时，\n'
-        source_text += '必须提供实际修改后的对应源码，而不能继续声称此处未修改。\n\n'
+        source_text = '# MPL-2.0 Corresponding Source\n\nThis distribution provides the following original, unmodified corresponding-version source code under MPL-2.0.\nThe source comes bundled with the app free of charge; no network, payment or login is needed.\n\nTo get it: About & diagnostics → Open-source licenses and source code → Open MPL source archive;\nor in macOS, Show Package Contents → Contents/Resources/legal/MPL-SOURCES.zip.\n\nUnzip the ZIP first; each .crate is a standard tar.gz, extract it with tar -xzf <name-version.crate>.\nAll original source, Cargo.toml and the original license/copyright headers are kept; MPL-2.0.txt provides the full license text.\noption-ext is a desktop runtime dependency. The symphonia crates enter the similar-photos dependency graph through czkawka_core;\nthis feature does not call any audio tools, and the unmodified source is still shipped under MPL-2.0. The remaining components are mainly used for building or macro expansion.\nIndependent MIT code does not become MPL as a whole because of this archive. When you redistribute after modifying these MPL files,\nyou must provide the actual modified corresponding source, and must not keep claiming that it is unmodified here.\n\n\n'
         for p in mpl:
             source_text += f'- {p["name"]} {p["version"]}\n  Source: {p["source"]}\n  SHA-256: {p["sha256"]}\n'
         source_text += f'\nMPL-SOURCES.zip SHA-256: {sha(archive.read_bytes())}\n'
         source_text += '\nLicense: https://www.mozilla.org/en-US/MPL/2.0/\n'
         (output / 'MPL-SOURCES.md').write_text(source_text)
-        notices = 'Organize — Independent derivative / 独立衍生项目\n\n' + mit + '\n' + brand
+        notices = 'Organize — Independent derivative project\n\n' + mit + '\n' + brand
         notices += '\nInventory conservatively includes runtime AND build dependencies.\n'
         for p in components:
             notices += f'\n{"=" * 72}\n{p["ecosystem"]}: {p["name"]} {p["version"]}\nLicense: {p["license"]}\nScope: {p["scope"]}\nSource: {p["source"]}\n'

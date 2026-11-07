@@ -14,11 +14,11 @@ const serverIssues = ref<Array<Record<string, unknown>>>([])
 const expandedRule = ref<string>()
 
 const PRESETS = {
-  'by-type': { label: '分类整理', icon: 'folder', description: '按扩展名把文件放进对应的子文件夹。' },
-  'by-date': { label: '按日期归档', icon: 'image', description: '按文件修改日期放进“年/月”文件夹。' },
-  'old-installers': { label: '旧安装包清理', icon: 'download', description: '把长期没用的安装包移到隔离区，可以随时恢复。' },
-  duplicates: { label: '重复文件查找', icon: 'duplicate', description: '找出内容完全相同的文件，由你决定保留哪一份。' },
-  'similar-photos': { label: '相似照片', icon: 'image', description: '找出完全相同和看起来相似的照片。旋转、翻转的副本也会被找出来。' },
+  'by-type': { label: 'Sort by type', icon: 'folder', description: 'Puts files into matching subfolders by extension.' },
+  'by-date': { label: 'Archive by date', icon: 'image', description: 'Puts files by modified date into “Year/Month” folders.' },
+  'old-installers': { label: 'Clean up old installers', icon: 'download', description: 'Move long-unused installers to quarantine; restore any time.' },
+  duplicates: { label: 'Duplicate file finder', icon: 'duplicate', description: 'Finds files with identical content; you decide which copy to keep.' },
+  'similar-photos': { label: 'Similar photos', icon: 'image', description: 'Finds identical and similar-looking photos. Rotated and flipped copies are found too.' },
 } as const
 const preset = computed(() => PRESETS[store.profile.presetType])
 const params = computed(() => store.profile.parameters)
@@ -27,26 +27,26 @@ const fixedTarget = computed(() => ['old-installers', 'duplicates', 'similar-pho
 const photos = computed(() => store.profile.presetType === 'similar-photos')
 const scanModeMissing = computed(() => photos.value && params.value.scanExact === false && params.value.scanSimilar === false)
 const baseName = (path: string) => path.replace(/\/+$/, '').split('/').at(-1) || path
-const targetPath = computed(() => fixedTarget.value ? store.settings.quarantineFolder || '应用隔离区' : store.profile.targetFolder)
-const targetName = computed(() => fixedTarget.value ? '隔离区' : baseName(store.profile.targetFolder))
+const targetPath = computed(() => fixedTarget.value ? store.settings.quarantineFolder || 'App quarantine' : store.profile.targetFolder)
+const targetName = computed(() => fixedTarget.value ? 'Quarantine' : baseName(store.profile.targetFolder))
 
 const savedEntry = computed(() => store.savedProfiles.find((profile) => profile.id === store.profile.id))
 const saveState = computed(() => !savedEntry.value ? 'new' : stableStringify(savedEntry.value) === stableStringify(store.profile) ? 'saved' : 'dirty')
-const SAVE_LABELS = { new: '未保存', saved: '已保存', dirty: '有未保存的改动' }
+const SAVE_LABELS = { new: 'Unsaved', saved: 'Saved', dirty: 'Unsaved changes' }
 
 const SERVER_LABELS: Record<string, string> = {
-  SOURCE_NOT_FOUND: '来源文件夹不存在', SOURCE_NOT_READABLE: '来源文件夹无法读取', TARGET_NOT_WRITABLE: '目标文件夹无法写入',
-  SOURCE_TARGET_OVERLAP: '目标文件夹不能放在来源里面', QUARANTINE_OVERLAP: '来源文件夹不能与隔离区重叠',
-  INVALID_RULE_NAME: '分类名称不能为空', INVALID_RULE_FOLDER: '子文件夹名称不合法', INVALID_RULE_EXTENSIONS: '扩展名无效',
-  DUPLICATE_EXTENSION: '扩展名同时属于多个分类', NO_CATEGORIES: '至少启用一个分类，或把未匹配的文件归入其他文件夹',
-  INVALID_TYPE_RULES: '分类规则格式不正确', INVALID_UNMATCHED_ACTION: '未匹配文件的处理方式不正确',
+  SOURCE_NOT_FOUND: 'Source folder does not exist', SOURCE_NOT_READABLE: 'Source folder cannot be read', TARGET_NOT_WRITABLE: 'The target folder cannot be written to',
+  SOURCE_TARGET_OVERLAP: 'The target folder cannot be placed inside the source', QUARANTINE_OVERLAP: 'Source folder cannot overlap the quarantine',
+  INVALID_RULE_NAME: 'Category name cannot be empty', INVALID_RULE_FOLDER: 'Subfolder name is invalid', INVALID_RULE_EXTENSIONS: 'Invalid extension',
+  DUPLICATE_EXTENSION: 'Extension belongs to multiple categories', NO_CATEGORIES: 'Enable at least one category, or put unmatched files into the Other folder',
+  INVALID_TYPE_RULES: 'Category rules are malformed', INVALID_UNMATCHED_ACTION: 'How to handle unmatched files is invalid',
 }
 const RULE_FIELDS: Record<string, RuleIssue['field']> = {
   INVALID_RULE_NAME: 'name', INVALID_RULE_FOLDER: 'folder', INVALID_RULE_EXTENSIONS: 'extensions', DUPLICATE_EXTENSION: 'extensions',
 }
 const serverLabel = (issue: Record<string, unknown>) => {
   const label = SERVER_LABELS[String(issue.code)] ?? String(issue.code)
-  const detail = issue.extension ? `“${issue.extension}”` : issue.path ? `：${issue.path}` : ''
+  const detail = issue.extension ? `“${issue.extension}”` : issue.path ? `: ${issue.path}` : ''
   return `${label}${detail}`
 }
 
@@ -75,12 +75,12 @@ const blockers = computed(() => (store.profile.sourceFolders.length ? 0 : 1) + (
 const enabledRules = computed(() => (params.value.typeRules ?? []).map((rule, index) => ({ rule, index })).filter(({ rule }) => rule.enabled))
 const now = new Date()
 const summary = computed(() => {
-  const sources = `${store.profile.sourceFolders.length} 个来源`
-  if (isByType.value) return `${sources} → ${enabledRules.value.length} 个分类${params.value.unmatchedAction === 'keep' ? '，未匹配的文件留在原处' : ''}`
-  if (store.profile.presetType === 'by-date') return `${sources} → 按“年/月”归档`
-  if (store.profile.presetType === 'old-installers') return `${sources} → 超过 ${params.value.olderThanDays ?? 90} 天的安装包移到隔离区`
-  if (photos.value) return `${sources} → 精确重复${params.value.scanExact === false ? '关闭' : '开启'}，相似${params.value.scanSimilar === false ? '关闭' : '开启'}`
-  return `${sources} → 找出重复文件，逐组确认`
+  const sources = `${store.profile.sourceFolders.length} sources`
+  if (isByType.value) return `${sources} → ${enabledRules.value.length} categories${params.value.unmatchedAction === 'keep' ? ', unmatched files stay in place' : ''}`
+  if (store.profile.presetType === 'by-date') return `${sources} → Archive by “Year/Month”`
+  if (store.profile.presetType === 'old-installers') return `${sources} → Installers older than ${params.value.olderThanDays ?? 90} days are moved to quarantine`
+  if (photos.value) return `${sources} → Exact duplicates ${params.value.scanExact === false ? 'off' : 'on'}, similar ${params.value.scanSimilar === false ? 'off' : 'on'}`
+  return `${sources} → Find duplicate files and confirm group by group`
 })
 
 async function addSource() {
@@ -117,8 +117,8 @@ async function scan() {
     <header class="config-header">
       <div class="config-title">
         <span class="config-kicker"><AppIcon :name="preset.icon" :size="14" />{{ preset.label }}</span>
-        <label class="title-field" title="点击修改方案名称">
-          <input v-model="store.profile.name" maxlength="80" aria-label="方案名称" placeholder="给这个方案起个名字" />
+        <label class="title-field" title="Click to rename plan">
+          <input v-model="store.profile.name" maxlength="80" aria-label="Plan name" placeholder="Give this plan a name" />
           <AppIcon name="edit" :size="15" />
         </label>
         <p>{{ preset.description }}</p>
@@ -126,7 +126,7 @@ async function scan() {
       <div class="config-tools">
         <span class="save-state" :class="saveState"><i />{{ SAVE_LABELS[saveState] }}</span>
         <ProfileMenu :saved="Boolean(savedEntry)" @loaded="serverIssues = []; expandedRule = undefined" />
-        <button class="button secondary" :disabled="saveState === 'saved' || !store.profile.name.trim()" @click="store.saveProfile">保存方案</button>
+        <button class="button secondary" :disabled="saveState === 'saved' || !store.profile.name.trim()" @click="store.saveProfile">Save plan</button>
       </div>
     </header>
 
@@ -134,33 +134,33 @@ async function scan() {
       <div class="config-main">
         <section class="panel config-section route-panel">
           <header class="section-head">
-            <div class="section-title"><h2>整理范围</h2><p>扫描只读取文件信息，不会改动任何文件</p></div>
-            <div class="section-actions"><button class="button secondary small" @click="addSource"><AppIcon name="plus" :size="15" />添加来源</button></div>
+            <div class="section-title"><h2>Scope</h2><p>Scanning only reads file info and changes no files</p></div>
+            <div class="section-actions"><button class="button secondary small" @click="addSource"><AppIcon name="plus" :size="15" />Add source</button></div>
           </header>
           <div class="route">
-            <div class="route-label">来源</div>
+            <div class="route-label">Source</div>
             <div v-for="(source, index) in store.profile.sourceFolders" :key="`${source}-${index}`" class="path-row">
               <span class="path-icon"><AppIcon name="folder" :size="17" /></span>
               <span class="path-text"><b>{{ baseName(source) }}</b><code :title="source">{{ source }}</code></span>
               <span class="path-actions">
-                <button class="icon-button" title="更换文件夹" :aria-label="`更换来源 ${baseName(source)}`" @click="replaceSource(index)"><AppIcon name="swap" :size="15" /></button>
-                <button class="icon-button danger" title="移除" :aria-label="`移除来源 ${baseName(source)}`" @click="store.profile.sourceFolders.splice(index, 1)"><AppIcon name="close" :size="15" /></button>
+                <button class="icon-button" title="Change folder" :aria-label="`Change source ${baseName(source)}`" @click="replaceSource(index)"><AppIcon name="swap" :size="15" /></button>
+                <button class="icon-button danger" title="Remove" :aria-label="`Remove source ${baseName(source)}`" @click="store.profile.sourceFolders.splice(index, 1)"><AppIcon name="close" :size="15" /></button>
               </span>
             </div>
             <button v-if="!store.profile.sourceFolders.length" class="path-row empty" @click="addSource">
-              <span class="path-icon"><AppIcon name="plus" :size="17" /></span><span class="path-text"><b>添加要整理的文件夹</b><code>可以添加多个，扫描前会检查读取权限</code></span>
+              <span class="path-icon"><AppIcon name="plus" :size="17" /></span><span class="path-text"><b>Add folders to organize</b><code>You can add several; read permission is checked before scanning</code></span>
             </button>
             <div class="route-option">
-              <span><b>包含子文件夹里的文件</b><small>{{ store.profile.includeSubfolders ? '会逐层查看所有子文件夹' : '只查看所选文件夹的第一层' }}</small></span>
-              <SwitchToggle v-model="store.profile.includeSubfolders" label="包含子文件夹里的文件" />
+              <span><b>Include files in subfolders</b><small>{{ store.profile.includeSubfolders ? 'Looks through all subfolders level by level' : 'Only looks at the first level of the chosen folders' }}</small></span>
+              <SwitchToggle v-model="store.profile.includeSubfolders" label="Include files in subfolders" />
             </div>
-            <div class="route-label target">{{ fixedTarget ? '移到隔离区' : '整理到' }}</div>
+            <div class="route-label target">{{ fixedTarget ? 'Move to quarantine' : 'Organize into' }}</div>
             <div class="path-row target" :class="{ fixed: fixedTarget, error: targetInsideSource }">
               <span class="path-icon"><AppIcon :name="fixedTarget ? 'shield' : 'folder'" :size="17" /></span>
               <span class="path-text"><b>{{ targetName }}</b><code :title="targetPath">{{ targetPath }}</code></span>
               <span class="path-actions">
-                <span v-if="fixedTarget" class="fixed-badge"><AppIcon name="lock" :size="13" />由应用管理</span>
-                <button v-else class="button ghost small" @click="changeTarget"><AppIcon name="swap" :size="14" />更换</button>
+                <span v-if="fixedTarget" class="fixed-badge"><AppIcon name="lock" :size="13" />Managed by the app</span>
+                <button v-else class="button ghost small" @click="changeTarget"><AppIcon name="swap" :size="14" />Change</button>
               </span>
             </div>
           </div>
@@ -169,92 +169,92 @@ async function scan() {
         <TypeRulesEditor v-if="isByType" :key="store.profile.id" v-model:expanded="expandedRule" :issues="issues" :target-name="targetName" />
 
         <section v-else-if="store.profile.presetType === 'old-installers'" class="panel config-section">
-          <header class="section-head"><div class="section-title"><h2>隔离条件</h2><p>只处理 dmg、pkg、exe、msi 等安装包</p></div></header>
+          <header class="section-head"><div class="section-title"><h2>Quarantine conditions</h2><p>Only handles installers such as dmg, pkg, exe, msi</p></div></header>
           <div class="option-list">
             <div class="option-row">
-              <span><b>多久没修改的安装包</b><small>按文件最后修改时间判断</small></span>
-              <div class="segments compact" role="radiogroup" aria-label="未修改天数">
-                <button v-for="days in [30, 60, 90, 180]" :key="days" role="radio" :aria-checked="params.olderThanDays === days" :class="{ active: params.olderThanDays === days }" @click="params.olderThanDays = days">{{ days }} 天</button>
+              <span><b>Installers unmodified for</b><small>Judged by last modified time</small></span>
+              <div class="segments compact" role="radiogroup" aria-label="Days unmodified">
+                <button v-for="days in [30, 60, 90, 180]" :key="days" role="radio" :aria-checked="params.olderThanDays === days" :class="{ active: params.olderThanDays === days }" @click="params.olderThanDays = days">{{ days }} days</button>
               </div>
             </div>
             <div class="option-row">
-              <span><b>同时包含 ZIP 压缩包</b><small>压缩包里可能有其他文件，默认关闭</small></span>
-              <SwitchToggle :model-value="Boolean(params.includeArchives)" label="同时包含 ZIP 压缩包" @update:model-value="params.includeArchives = $event" />
+              <span><b>Also include ZIP archives</b><small>Archives may contain other files; off by default</small></span>
+              <SwitchToggle :model-value="Boolean(params.includeArchives)" label="Also include ZIP archives" @update:model-value="params.includeArchives = $event" />
             </div>
           </div>
         </section>
 
         <section v-else-if="photos" class="panel config-section">
-          <header class="section-head"><div class="section-title"><h2>扫描内容</h2><p>只读取照片。删除一律进入隔离区，可以撤销。</p></div></header>
+          <header class="section-head"><div class="section-title"><h2>What to scan</h2><p>Only reads photos. Deletions always go to quarantine and can be undone.</p></div></header>
           <div class="option-list">
             <div class="option-row">
-              <span><b>精确重复</b><small>文件字节完全相同，包括两份一样的 HEIC</small></span>
-              <SwitchToggle :model-value="params.scanExact !== false" label="精确重复" @update:model-value="params.scanExact = $event" />
+              <span><b>Exact duplicates</b><small>Files are byte-for-byte identical, including two identical HEIC</small></span>
+              <SwitchToggle :model-value="params.scanExact !== false" label="Exact duplicates" @update:model-value="params.scanExact = $event" />
             </div>
             <div class="option-row">
-              <span><b>看起来相似</b><small>压缩、分辨率不同，或旋转、翻转后的副本</small></span>
-              <SwitchToggle :model-value="params.scanSimilar !== false" label="看起来相似" @update:model-value="params.scanSimilar = $event" />
+              <span><b>Looks similar</b><small>Copies that were compressed, differ in resolution, or were rotated or flipped</small></span>
+              <SwitchToggle :model-value="params.scanSimilar !== false" label="Looks similar" @update:model-value="params.scanSimilar = $event" />
             </div>
             <div class="option-row">
-              <span><b>旋转和翻转</b><small>开启后会把转过方向的照片放进同一组，扫描会更慢</small></span>
-              <SwitchToggle :model-value="params.geometricInvariance !== false" label="旋转和翻转" @update:model-value="params.geometricInvariance = $event" />
+              <span><b>Rotation and flipping</b><small>When on, rotated photos are grouped together; scanning is slower</small></span>
+              <SwitchToggle :model-value="params.geometricInvariance !== false" label="Rotation and flipping" @update:model-value="params.geometricInvariance = $event" />
             </div>
             <div class="option-row">
-              <span><b>相似严格程度</b><small>数字越小，越不容易把不同照片放在一组</small></span>
-              <div class="segments compact" role="radiogroup" aria-label="相似距离">
+              <span><b>Similarity strictness</b><small>The smaller the number, the less likely different photos are grouped together</small></span>
+              <div class="segments compact" role="radiogroup" aria-label="Similarity distance">
                 <button v-for="value in [0, 5, 10, 15]" :key="value" role="radio" :aria-checked="(params.maxDifference ?? 5) === value" :class="{ active: (params.maxDifference ?? 5) === value }" @click="params.maxDifference = value">{{ value }}</button>
               </div>
             </div>
           </div>
-          <div class="banner undo inset"><AppIcon name="info" :size="16" />相似组不会预先标记删除。扫描后由你逐组选择，或一键套用保留规则再调整。macOS 用系统自带的 sips 解码 HEIC，不需要额外安装解码库。</div>
+          <div class="banner undo inset"><AppIcon name="info" :size="16" />Similar groups are not pre-marked for deletion. After scanning you choose group by group, or apply a keep rule in one click and then adjust. macOS decodes HEIC with its built-in sips, so no extra decoder library is needed.</div>
         </section>
 
         <section v-else class="panel config-section">
-          <header class="section-head"><div class="section-title"><h2>{{ store.profile.presetType === 'by-date' ? '归档方式' : '处理方式' }}</h2></div></header>
-          <div v-if="store.profile.presetType === 'by-date'" class="banner quarantine inset"><AppIcon name="info" :size="16" />按文件修改日期归档。修改日期不一定等于照片的拍摄日期。</div>
-          <div v-else class="banner undo inset"><AppIcon name="info" :size="16" />找到的重复文件不会自动处理。扫描后由你逐组选择保留哪一份，其余移到隔离区。</div>
+          <header class="section-head"><div class="section-title"><h2>{{ store.profile.presetType === 'by-date' ? 'Archive by' : 'How to handle' }}</h2></div></header>
+          <div v-if="store.profile.presetType === 'by-date'" class="banner quarantine inset"><AppIcon name="info" :size="16" />Archives by file modified date. The modified date isn’t always the date a photo was taken.</div>
+          <div v-else class="banner undo inset"><AppIcon name="info" :size="16" />Duplicates found are never handled automatically. After scanning you pick which copy to keep for each group; the rest move to quarantine.</div>
         </section>
       </div>
 
       <aside class="config-aside">
         <section class="panel aside-card">
-          <h3>整理后会是这样</h3>
+          <h3>This is how it will look</h3>
           <div class="tree">
             <div class="tree-root"><AppIcon :name="fixedTarget ? 'shield' : 'folder'" :size="15" /><b>{{ targetName }}/</b></div>
             <template v-if="isByType">
               <button v-for="{ rule, index } in enabledRules" :key="rule.id" class="tree-node" :class="`tone-${index % 8}`" @click="focusRule(rule.id)">
-                <i class="tone-dot" /><span>{{ rule.folderName || '…' }}/</span><small>{{ rule.extensions.length }} 种</small>
+                <i class="tone-dot" /><span>{{ rule.folderName || '…' }}/</span><small>{{ rule.extensions.length }} kinds</small>
               </button>
-              <div v-if="params.unmatchedAction !== 'keep'" class="tree-node muted"><i class="tone-dot" /><span>{{ params.otherFolder || '…' }}/</span><small>其余</small></div>
-              <p v-else class="tree-note">未匹配的文件留在原处</p>
-              <p v-if="!enabledRules.length && params.unmatchedAction === 'keep'" class="tree-note">还没有启用的分类</p>
+              <div v-if="params.unmatchedAction !== 'keep'" class="tree-node muted"><i class="tone-dot" /><span>{{ params.otherFolder || '…' }}/</span><small>The rest</small></div>
+              <p v-else class="tree-note">Unmatched files stay in place</p>
+              <p v-if="!enabledRules.length && params.unmatchedAction === 'keep'" class="tree-note">No categories enabled yet</p>
             </template>
             <template v-else-if="store.profile.presetType === 'by-date'">
-              <div class="tree-node"><i class="tone-dot" /><span>{{ now.getFullYear() }}年/</span></div>
-              <div class="tree-node deep"><i class="tone-dot" /><span>{{ now.getMonth() + 1 }}月/</span></div>
+              <div class="tree-node"><i class="tone-dot" /><span>{{ now.getFullYear() }}/</span></div>
+              <div class="tree-node deep"><i class="tone-dot" /><span>{{ now.getMonth() + 1 }}/</span></div>
             </template>
-            <p v-else class="tree-note">每个文件都会记录原始位置，可以一键恢复</p>
+            <p v-else class="tree-note">Every file’s original location is recorded; restore in one click</p>
           </div>
         </section>
 
         <section class="panel aside-card">
-          <h3>扫描前检查<span v-if="blockers" class="count-badge fail">{{ blockers }}</span></h3>
+          <h3>Pre-scan checks<span v-if="blockers" class="count-badge fail">{{ blockers }}</span></h3>
           <ul class="checklist">
             <li :class="store.profile.sourceFolders.length ? 'ok' : 'fail'">
               <AppIcon :name="store.profile.sourceFolders.length ? 'check' : 'alert'" :size="14" />
-              {{ store.profile.sourceFolders.length ? `已选择 ${store.profile.sourceFolders.length} 个来源文件夹` : '至少添加一个来源文件夹' }}
+              {{ store.profile.sourceFolders.length ? `Selected ${store.profile.sourceFolders.length} source folders` : 'Add at least one source folder' }}
             </li>
             <li v-if="photos" :class="scanModeMissing ? 'fail' : 'ok'">
-              <AppIcon :name="scanModeMissing ? 'alert' : 'check'" :size="14" />{{ scanModeMissing ? '至少打开精确重复或相似其中一项' : '已选择扫描方式' }}
+              <AppIcon :name="scanModeMissing ? 'alert' : 'check'" :size="14" />{{ scanModeMissing ? 'Turn on at least one of exact duplicates or similar' : 'Scan mode selected' }}
             </li>
             <li v-if="!fixedTarget" :class="targetInsideSource ? 'fail' : 'ok'">
-              <AppIcon :name="targetInsideSource ? 'alert' : 'check'" :size="14" />{{ targetInsideSource ? '目标文件夹在来源里面，请更换' : '目标文件夹不在来源里面' }}
+              <AppIcon :name="targetInsideSource ? 'alert' : 'check'" :size="14" />{{ targetInsideSource ? 'The target folder is inside the source; please change it' : 'The target folder is not inside the source' }}
             </li>
             <template v-if="isByType">
-              <li v-if="!issues.length" class="ok"><AppIcon name="check" :size="14" />分类规则没有冲突</li>
+              <li v-if="!issues.length" class="ok"><AppIcon name="check" :size="14" />No conflicts in category rules</li>
               <li v-for="(issue, index) in issues" :key="index" class="fail" :class="{ link: issue.ruleId }" @click="focusRule(issue.ruleId)">
                 <AppIcon name="alert" :size="14" />
-                <span><b v-if="issue.ruleId">{{ params.typeRules?.find((rule) => rule.id === issue.ruleId)?.name || '未命名分类' }}</b>{{ issue.message }}</span>
+                <span><b v-if="issue.ruleId">{{ params.typeRules?.find((rule) => rule.id === issue.ruleId)?.name || 'Unnamed category' }}</b>{{ issue.message }}</span>
               </li>
             </template>
             <li v-for="(issue, index) in environmentIssues" :key="`env-${index}`" class="fail"><AppIcon name="alert" :size="14" /><span>{{ serverLabel(issue) }}</span></li>
@@ -262,19 +262,19 @@ async function scan() {
         </section>
 
         <section class="panel aside-card subtle">
-          <h3>自动跳过</h3>
-          <p>还没下载完的文件、系统文件、软链接，以及无法安全读取的文件。</p>
+          <h3>Auto-skipped</h3>
+          <p>Files still downloading, system files, symlinks, and files that cannot be read safely.</p>
         </section>
       </aside>
     </div>
 
     <footer class="action-bar config-actions">
-      <button class="button secondary" @click="store.go('home')">← 返回首页</button>
+      <button class="button secondary" @click="store.go('home')">← Back to home</button>
       <span class="action-summary" :class="{ fail: blockers }">
-        <template v-if="blockers"><AppIcon name="alert" :size="15" />还有 {{ blockers }} 个问题需要处理，处理后才能扫描</template>
+        <template v-if="blockers"><AppIcon name="alert" :size="15" />{{ blockers }} issues to fix before scanning</template>
         <template v-else><AppIcon name="check" :size="15" />{{ summary }}</template>
       </span>
-      <button class="button primary" :disabled="validating || store.busy || blockers > 0" @click="scan">{{ validating ? '正在检查…' : '开始扫描' }}<AppIcon name="arrow" :size="16" /></button>
+      <button class="button primary" :disabled="validating || store.busy || blockers > 0" @click="scan">{{ validating ? 'Checking…' : 'Start scan' }}<AppIcon name="arrow" :size="16" /></button>
     </footer>
   </div>
 </template>

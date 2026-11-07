@@ -38,7 +38,7 @@ def type_configuration(profile: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], s
             for key, category in CATEGORIES.items() if key != "other"
         ]
         unmatched = "other" if "other" in enabled else "keep"
-    return rules, unmatched, params.get("otherFolder", "其他文件")
+    return rules, unmatched, params.get("otherFolder", "Other files")
 
 
 def validate_type_configuration(profile: Dict[str, Any]) -> List[Dict[str, Any]]:

@@ -1,4 +1,4 @@
-Organize — Independent derivative / 独立衍生项目
+Organize — Independent derivative project
 
 The MIT License (MIT)
 
@@ -48,22 +48,22 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-# 独立项目与品牌说明
+# Independent Project and Branding Notice
 
-Organize 是独立维护的开源桌面衍生项目，基于 Thomas Feldmann 的 organize 引擎。
-它不代表上游作者的官方桌面产品，未声称获得上游作者的背书。
+Organize is an independently maintained open-source desktop derivative project, based on Thomas Feldmann's organize engine.
+It is not the upstream author's official desktop product and does not claim the upstream author's endorsement.
 
-本项目不声称与任何第三方产品或平台存在隶属、赞助或认可关系。
-提及兼容环境仅用于说明技术条件，不表示合作或授权；相关商标属于各自权利人。
+This project does not claim any affiliation, sponsorship or endorsement with any third-party product or platform.
+Mentions of compatible environments only describe technical requirements and do not imply partnership or authorization; related trademarks belong to their respective owners.
 
-当前发行继续使用项目原版图标，安装包和界面均使用该版本。
-新版图标草稿仅保存在 `apps/desktop/icon-backup/`，不参与当前构建或发行。
+The current release keeps using the project's original icon; the installer and the interface both use that version.
+Drafts of a new icon are stored only in `apps/desktop/icon-backup/` and take no part in the current build or release.
 
-发行与营销请使用「Organize — 独立桌面衍生项目」，保留引擎署名，
-不要使用「官方版」、第三方产品徽标或暗示合作的表达。开源许可不等于商标授权；
-“Organize”这个名称仍须在目标市场做商标与混淆风险检索，必要时更换名称。
+For releases and marketing, please use "Organize — independent desktop derivative project", keep the engine attribution,
+and do not use "official version", third-party product logos, or wording that implies a partnership. An open-source license is not a trademark license;
+the name "Organize" must still be checked for trademark and confusion risk in the target market, and changed if necessary.
 
-这些措施降低与已有品牌混淆的风险，但不构成商标无冲突保证或正式法律意见。
+These measures reduce the risk of confusion with existing brands, but they do not guarantee freedom from trademark conflicts and are not formal legal advice.
 
 Inventory conservatively includes runtime AND build dependencies.
 

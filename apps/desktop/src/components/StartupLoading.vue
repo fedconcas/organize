@@ -23,9 +23,9 @@ onBeforeUnmount(() => clearTimeout(slowTimer))
         <ellipse cx="56" cy="56" rx="29" ry="37" stroke="url(#startup-o-live)" stroke-width="9" />
       </svg>
     </div>
-    <h1 class="startup-title">{{ failed ? '暂时无法启动智能整理' : '正在准备智能整理' }}</h1>
-    <p v-if="failed" class="startup-detail startup-error">{{ error || '整理引擎未能启动，请重试。' }}</p>
-    <p v-else class="startup-detail">{{ slow ? '首次启动可能需要一点时间，请稍候…' : '正在启动本地引擎，请稍候…' }}</p>
-    <button v-if="failed" class="startup-retry" @click="$emit('retry')">重新加载</button>
+    <h1 class="startup-title">{{ failed ? 'Smart Organize can’t start right now' : 'Preparing Smart Organize' }}</h1>
+    <p v-if="failed" class="startup-detail startup-error">{{ error || 'The organizing engine failed to start. Please retry.' }}</p>
+    <p v-else class="startup-detail">{{ slow ? 'The first launch may take a moment, please wait…' : 'Starting the local engine, please wait…' }}</p>
+    <button v-if="failed" class="startup-retry" @click="$emit('retry')">Reload</button>
   </section>
 </template>

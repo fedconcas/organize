@@ -8,15 +8,15 @@ const categories = ['documents', 'images', 'videos', 'audio', 'archives', 'insta
 
 function makeProfile(preset: PresetType): Profile {
   const names: Record<PresetType, string> = {
-    'by-type': '文件按类型整理',
-    'by-date': '图片按日期归档',
-    'old-installers': '旧安装包清理',
-    duplicates: '重复文件查找',
-    'similar-photos': '相似照片',
+    'by-type': 'Organize files by type',
+    'by-date': 'Archive images by date',
+    'old-installers': 'Clean up old installers',
+    duplicates: 'Duplicate file finder',
+    'similar-photos': 'Similar photos',
   }
   return {
     id: crypto.randomUUID(), name: names[preset], presetType: preset,
-    sourceFolders: ['~/Downloads'], targetFolder: '~/Documents/整理',
+    sourceFolders: ['~/Downloads'], targetFolder: '~/Documents/Organize',
     includeSubfolders: preset === 'duplicates' || preset === 'similar-photos', schemaVersion: 1,
     parameters: {
       categories: [...categories], olderThanDays: 90,
@@ -49,7 +49,7 @@ export const useAppStore = defineStore('app', () => {
   const busy = ref(false)
   const theme = ref<'system' | 'light' | 'dark'>('system')
   const settings = ref<Settings>({ theme: 'system', retentionDays: 30, historyLimit: 200, redactPaths: true,
-    notifyOnComplete: true, defaultTargetFolder: '~/Documents/整理', quarantineFolder: '' })
+    notifyOnComplete: true, defaultTargetFolder: '~/Documents/Organize', quarantineFolder: '' })
   const savedProfiles = ref<Profile[]>([])
   const lastProfile = ref<Profile>()
   const notice = ref('')
@@ -72,7 +72,7 @@ export const useAppStore = defineStore('app', () => {
     try {
       await api.request('profile.save', { profile: profile.value })
       savedProfiles.value = await api.request<Profile[]>('profile.list')
-      notice.value = '方案已保存，可在方案设置中再次选择。'
+      notice.value = 'Plan saved. You can select it again in plan settings.'
     } catch (caught) { report(caught) }
   }
   async function deleteProfile(id: string) {
@@ -212,7 +212,7 @@ export const useAppStore = defineStore('app', () => {
       view.value = 'result'
       await refreshCollections()
       if (settings.value.notifyOnComplete && document.hidden) {
-        try { await notifyCompletion(result.value) } catch { notice.value = '整理已完成，系统通知未能发送。请检查系统通知权限。' }
+        try { await notifyCompletion(result.value) } catch { notice.value = 'Organizing is finished, but the system notification could not be sent. Please check notification permissions.' }
       }
     } catch (caught) {
       error.value = caught instanceof Error ? caught.message : String(caught)
@@ -298,7 +298,7 @@ export const useAppStore = defineStore('app', () => {
     busy.value = true
     try {
       const counts = await api.request<{ restored?: number; moved?: number; skipped?: number; failed: number }>(method, { quarantineIds, destinationFolder })
-      notice.value = `已处理 ${counts.restored ?? counts.moved ?? 0} 个，跳过 ${counts.skipped ?? 0} 个，失败 ${counts.failed} 个。`
+      notice.value = `Processed ${counts.restored ?? counts.moved ?? 0} items, skipped ${counts.skipped ?? 0} items, failed ${counts.failed} items.`
       await refreshCollections()
       return true
     } catch (caught) { report(caught); return false } finally { busy.value = false }

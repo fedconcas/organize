@@ -27,19 +27,19 @@ function conflictsFor(rule: TypeRule) {
   const result = new Map<string, string[]>()
   if (!rule.enabled) return result
   for (const extension of rule.extensions) {
-    const others = (owners.value.get(extension) ?? []).filter((name) => name !== (rule.name || '未命名分类'))
+    const others = (owners.value.get(extension) ?? []).filter((name) => name !== (rule.name || 'Unnamed category'))
     if (others.length) result.set(extension, others)
   }
   return result
 }
 
 const ICONS: Array<[RegExp, string]> = [
-  [/^(documents|text|pdf|sheets|slides)$|文档|文稿|资料|表格|演示/, 'file'],
-  [/^(images|photos|graphics)$|图|照片/, 'image'],
-  [/^videos$|视频/, 'video'],
-  [/^audio$|音/, 'music'],
-  [/^archives$|压缩/, 'archive'],
-  [/^installers$|安装/, 'package'],
+  [/^(documents|text|pdf|sheets|slides)$|documents?|text|materials?|spreadsheets?|presentations?|文档|文稿|资料|表格|演示/i, 'file'],
+  [/^(images|photos|graphics)$|images?|photos?|graphics|图|照片/i, 'image'],
+  [/^videos$|videos?|视频/i, 'video'],
+  [/^audio$|audio|音/i, 'music'],
+  [/^archives$|archives?|压缩/i, 'archive'],
+  [/^installers$|installers?|安装/i, 'package'],
 ]
 const iconFor = (rule: TypeRule) => ICONS.find(([pattern]) => pattern.test(rule.id) || pattern.test(rule.name))?.[1] ?? 'tag'
 
@@ -79,66 +79,66 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentClick)
   <section class="panel config-section rules-panel">
     <header class="section-head">
       <div class="section-title">
-        <h2>分类规则</h2>
-        <p>{{ enabledCount }} 个分类已启用，共识别 {{ extensionCount }} 种扩展名</p>
+        <h2>Category rules</h2>
+        <p>{{ enabledCount }} categories enabled, recognizing {{ extensionCount }} extensions</p>
       </div>
       <div class="section-actions">
         <div ref="templateRoot" class="menu-anchor">
-          <button class="button secondary small" :aria-expanded="templateOpen" @click="templateOpen ? closeTemplates() : (templateOpen = true)"><AppIcon name="layers" :size="15" />套用模板<AppIcon name="chevron" :size="13" /></button>
+          <button class="button secondary small" :aria-expanded="templateOpen" @click="templateOpen ? closeTemplates() : (templateOpen = true)"><AppIcon name="layers" :size="15" />Apply template<AppIcon name="chevron" :size="13" /></button>
           <div v-if="templateOpen" class="popover template-menu" role="menu">
-            <header class="popover-head">从模板开始</header>
+            <header class="popover-head">Start from a template</header>
             <template v-for="template in CLASSIFICATION_TEMPLATES" :key="template.id">
               <button v-if="pendingTemplate !== template.id" role="menuitem" class="template-item" @click="pendingTemplate = template.id">
                 <span><b>{{ template.name }}</b><small>{{ template.description }}</small></span>
-                <em>{{ classificationTemplate(template.id).length }} 个分类</em>
+                <em>{{ classificationTemplate(template.id).length }} categories</em>
               </button>
               <div v-else class="template-confirm">
-                <p>用“{{ template.name }}”替换当前 {{ rules.length }} 个分类？来源和目标不会改变。</p>
-                <div><button class="text-button" @click="pendingTemplate = undefined">取消</button><button class="button primary small" @click="applyTemplate(template.id)">替换</button></div>
+                <p>Use “{{ template.name }}” to replace the current {{ rules.length }} categories? Sources and destination stay unchanged.</p>
+                <div><button class="text-button" @click="pendingTemplate = undefined">Cancel</button><button class="button primary small" @click="applyTemplate(template.id)">Replace</button></div>
               </div>
             </template>
           </div>
         </div>
-        <button class="button secondary small" @click="add"><AppIcon name="plus" :size="15" />添加分类</button>
+        <button class="button secondary small" @click="add"><AppIcon name="plus" :size="15" />Add category</button>
       </div>
     </header>
 
     <div class="rule-table" role="list">
-      <div class="rule-head" aria-hidden="true"><span>启用</span><span>分类</span><span>放到</span><span>扩展名</span></div>
+      <div class="rule-head" aria-hidden="true"><span>Enabled</span><span>Category</span><span>Put in</span><span>Extensions</span></div>
       <article v-for="(rule, index) in rules" :key="rule.id" role="listitem" class="rule-row" :class="[`tone-${index % 8}`, { off: !rule.enabled, open: expanded === rule.id, invalid: issuesFor(rule.id).length }]" :data-rule="rule.id">
         <div class="rule-summary" @click="toggle(rule.id)">
-          <SwitchToggle v-model="rule.enabled" :label="`启用分类 ${rule.name}`" />
-          <span class="rule-name"><i class="rule-glyph"><AppIcon :name="iconFor(rule)" :size="15" /></i><b>{{ rule.name || '未命名分类' }}</b></span>
+          <SwitchToggle v-model="rule.enabled" :label="`Enable category ${rule.name}`" />
+          <span class="rule-name"><i class="rule-glyph"><AppIcon :name="iconFor(rule)" :size="15" /></i><b>{{ rule.name || 'Unnamed category' }}</b></span>
           <code class="rule-folder" :title="`${targetName}/${rule.folderName}`"><i>{{ targetName }}/</i>{{ rule.folderName || '…' }}</code>
           <span class="rule-exts">
             <span v-for="extension in rule.extensions.slice(0, 6)" :key="extension" class="ext-chip mini" :class="{ conflict: conflictsFor(rule).has(extension) }">{{ extension }}</span>
             <span v-if="rule.extensions.length > 6" class="ext-more">+{{ rule.extensions.length - 6 }}</span>
-            <span v-if="!rule.extensions.length" class="ext-empty">未设置扩展名</span>
+            <span v-if="!rule.extensions.length" class="ext-empty">No extensions set</span>
           </span>
           <span class="rule-state" :title="issuesFor(rule.id)[0]?.message">
             <AppIcon v-if="rule.enabled && issuesFor(rule.id).length" name="alert" :size="15" />
           </span>
-          <button class="icon-button chevron" :aria-expanded="expanded === rule.id" :aria-label="`编辑分类 ${rule.name}`" @click.stop="toggle(rule.id)"><AppIcon name="chevron" :size="16" /></button>
+          <button class="icon-button chevron" :aria-expanded="expanded === rule.id" :aria-label="`Edit category ${rule.name}`" @click.stop="toggle(rule.id)"><AppIcon name="chevron" :size="16" /></button>
         </div>
         <div v-if="expanded === rule.id" class="rule-editor">
           <label class="field" :class="{ error: issuesFor(rule.id, 'name').length }">
-            <span>分类名称</span>
+            <span>Category name</span>
             <input :value="rule.name" :data-rule-name="rule.id" maxlength="80" @input="rename(rule, ($event.target as HTMLInputElement).value)" />
             <small v-for="issue in issuesFor(rule.id, 'name')" :key="issue.message">{{ issue.message }}</small>
           </label>
           <label class="field" :class="{ error: issuesFor(rule.id, 'folder').length }">
-            <span>放到子文件夹</span>
+            <span>Put in subfolder</span>
             <span class="prefixed-input"><em>{{ targetName }}/</em><input v-model="rule.folderName" maxlength="120" /></span>
             <small v-for="issue in issuesFor(rule.id, 'folder')" :key="issue.message">{{ issue.message }}</small>
           </label>
           <div class="field wide" :class="{ error: issuesFor(rule.id, 'extensions').length }">
-            <span>扩展名<em>按回车、空格或逗号确认；Backspace 删除最后一个</em></span>
-            <ExtensionInput v-model="rule.extensions" :label="`${rule.name} 的扩展名`" :conflicts="conflictsFor(rule)" />
+            <span>Extensions<em>Press Enter, Space or comma to confirm; Backspace removes the last one</em></span>
+            <ExtensionInput v-model="rule.extensions" :label="`${rule.name} extensions`" :conflicts="conflictsFor(rule)" />
             <small v-for="issue in issuesFor(rule.id, 'extensions')" :key="issue.message">{{ issue.message }}</small>
           </div>
           <footer class="rule-editor-actions">
-            <button class="text-button danger" @click="remove(rule)"><AppIcon name="trash" :size="14" />删除这个分类</button>
-            <button class="button secondary small" @click="expanded = undefined">完成</button>
+            <button class="text-button danger" @click="remove(rule)"><AppIcon name="trash" :size="14" />Delete this category</button>
+            <button class="button secondary small" @click="expanded = undefined">Done</button>
           </footer>
         </div>
       </article>
@@ -146,15 +146,15 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onDocumentClick)
       <article class="rule-row fallback" :class="{ invalid: otherIssue }">
         <div class="rule-summary static">
           <span class="fallback-mark"><AppIcon name="info" :size="15" /></span>
-          <span class="rule-name"><b>未匹配的文件</b><small>不属于任何已启用分类的文件</small></span>
-          <div class="segments compact" role="radiogroup" aria-label="未匹配文件的处理方式">
-            <button role="radio" :aria-checked="unmatched === 'other'" :class="{ active: unmatched === 'other' }" @click="unmatched = 'other'">归入文件夹</button>
-            <button role="radio" :aria-checked="unmatched === 'keep'" :class="{ active: unmatched === 'keep' }" @click="unmatched = 'keep'">留在原处</button>
+          <span class="rule-name"><b>Unmatched files</b><small>Files that don’t belong to any enabled category</small></span>
+          <div class="segments compact" role="radiogroup" aria-label="How to handle unmatched files">
+            <button role="radio" :aria-checked="unmatched === 'other'" :class="{ active: unmatched === 'other' }" @click="unmatched = 'other'">Move into a folder</button>
+            <button role="radio" :aria-checked="unmatched === 'keep'" :class="{ active: unmatched === 'keep' }" @click="unmatched = 'keep'">Stay in place</button>
           </div>
           <span v-if="unmatched === 'other'" class="prefixed-input small" :class="{ error: otherIssue }" :title="otherIssue?.message">
-            <em>{{ targetName }}/</em><input v-model="store.profile.parameters.otherFolder" maxlength="120" aria-label="其他文件夹名称" />
+            <em>{{ targetName }}/</em><input v-model="store.profile.parameters.otherFolder" maxlength="120" aria-label="Other folder name" />
           </span>
-          <span v-else class="fallback-note">不会移动</span>
+          <span v-else class="fallback-note">Won’t be moved</span>
         </div>
       </article>
     </div>

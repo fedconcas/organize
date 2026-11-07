@@ -30,7 +30,7 @@ def similar_photos_binary() -> Path:
             return path
         raise EngineError(
             "SIMILAR_SCANNER_MISSING",
-            "ORGANIZE_SIMILAR_PHOTOS 指向的扫描组件不存在。",
+            "ORGANIZE_SIMILAR_PHOTOS points to a scanner component that does not exist.",
             {"path": override},
         )
     if getattr(sys, "frozen", False):
@@ -49,7 +49,7 @@ def similar_photos_binary() -> Path:
     if not matches:
         raise EngineError(
             "SIMILAR_SCANNER_MISSING",
-            "未找到相似照片扫描组件。请先运行 scripts/build-similar-sidecar.sh。",
+            "Similar-photo scanner not found. Please run first:  scripts/build-similar-sidecar.sh. ",
         )
     return max(matches, key=lambda path: path.stat().st_mtime)
 
@@ -143,7 +143,7 @@ def scan_similar_photos(
                     "label": message.get("label") or "",
                 })
             elif kind == "error":
-                raise EngineError("SIMILAR_SCAN_FAILED", str(message.get("message") or "相似照片扫描失败"))
+                raise EngineError("SIMILAR_SCAN_FAILED", str(message.get("message") or "Similar-photo scan failed"))
             elif kind == "result":
                 result = message
         return_code = process.wait()
@@ -153,9 +153,9 @@ def scan_similar_photos(
             raise Cancelled()
         if return_code != 0 or result is None:
             detail = (errors[0] if errors else "").strip()[-2000:]
-            message = "相似照片扫描失败。"
+            message = "Similar-photo scan failed."
             if detail:
-                message = "相似照片扫描失败：%s" % detail[-400:]
+                message = "Similar-photo scan failed: %s" % detail[-400:]
             raise EngineError(
                 "SIMILAR_SCAN_FAILED",
                 message,
@@ -212,7 +212,7 @@ def items_from_scan(
             destination = quarantine_destination(path)
             item = make_item(plan_id, len(items), path, destination, "quarantine", False)
             item["groupId"] = group_id
-            item["reason"] = "内容完全相同的照片" if kind == "exact" else "看起来相似的照片"
+            item["reason"] = "Photos with identical content" if kind == "exact" else "Photos that look similar"
             item["metadata"] = {
                 "kind": kind,
                 "difference": int(raw.get("difference") or 0),

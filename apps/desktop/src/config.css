@@ -1,4 +1,4 @@
-/* Config page (方案设置): header, route panel, rule table, aside checks. */
+/* Config page (Plan settings): header, route panel, rule table, aside checks. */
 .config-page { --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace; --row-hover: rgb(255 255 255 / 4%); --field-bg: rgb(12 8 26 / 28%); }
 :root[data-theme=light] .config-page { --row-hover: rgb(48 39 67 / 4%); --field-bg: #fff; }
 
